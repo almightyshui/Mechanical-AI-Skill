@@ -1,0 +1,16 @@
+{
+  "stage": "1.1", "capability": "fastener_check",
+  "model": {"path": "C:/work/bracket.SLDASM", "type": "assembly"},
+  "units": "SI_mm_t",
+  "inputs": {"fasteners": [
+    {"name": "M6 cap screw into aluminum bracket", "diameter_mm": 6,
+     "mating_material": "aluminum", "thread_engagement_mm": 8},
+    {"name": "M8 bolt into steel boss", "diameter_mm": 8,
+     "mating_material": "steel", "thread_engagement_mm": 12},
+    {"name": "M10 through-bolt", "diameter_mm": 10,
+     "stack": ["bolt", "plate", "plate"]},
+    {"name": "M5 nutted joint", "diameter_mm": 5, "mating_material": "aluminum",
+     "stack": ["bolt", "plate", "nut"]}
+  ]},
+  "_note": "FREE: engagement + washer/nut stack screens. Preload/torque/joint analysis is Professional."
+}

@@ -352,9 +352,15 @@ _MECH_RULES = [
 def mechanism_detect(inp):
     """Identify the mechanism TYPE from part names + standard parts (Community).
 
-    Answers 'what is it' (Gear Train / Timing Belt Drive / Chain Drive / Lead Screw
-    System) with a confidence and the evidence parts. It does NOT infer purpose,
-    power flow, design intent, or failure modes — those are Professional.
+    Two layers, both rule-based:
+      1) single-part type rules (gear train, belt, chain, lead screw, robot arm,
+         linear slide, pneumatic cylinder, rotary table)
+      2) composite pattern matching — recognizes multi-component groupings by which
+         roles are present (e.g. motor + coupling + shaft -> "Rotary Drive Train";
+         guide + carriage + screw -> "Linear Motion Module")
+
+    It reports WHAT is grouped — not what it's for, how power flows, or why it's
+    designed this way. That interpretation is Professional.
 
     inputs: components: [{name, standard_part?}]
     """
@@ -364,24 +370,66 @@ def mechanism_detect(inp):
                 "note": "Provide the component list. This identifies the mechanism TYPE only; "
                         "purpose / power-flow / design-intent inference is Professional."}
     names = [(c.get("name") or "").lower() for c in comps]
+
+    # --- layer 1: single-part type rules ---
     detected = []
     for mech, patterns in _MECH_RULES:
         hits = [n for n in names if any(_re.search(p, n) for p in patterns)]
         if hits:
-            # crude confidence: more matching parts -> higher, capped
             conf = min(95, 40 + 12 * len(hits))
             detected.append({"mechanism": mech, "confidence": conf,
                              "evidence": sorted(set(hits))[:8]})
     detected.sort(key=lambda d: -d["confidence"])
-    if not detected:
-        return {"status": "ok", "results": {"detected": [],
-                "note": "No common mechanism matched by name/standard-part rules. "
-                        "This is type identification only (experimental), not design-intent analysis."}}
+
+    # --- layer 2: composite pattern matching (roles present in the assembly) ---
+    def has_role(role_patterns):
+        for n in names:
+            if any(_re.search(p, n) for p in role_patterns):
+                return n
+        return None
+
+    roles = {
+        "motor":     [r"\bmotor\b", r"servo", r"stepper", r"\bbldc\b"],
+        "coupling":  [r"coupling", r"\bjaw\b.*coupl"],
+        "shaft":     [r"\bshaft\b", r"\baxle\b", r"spindle"],
+        "gear":      [r"\bgear\b", r"pinion", r"reducer", r"gearbox"],
+        "guide":     [r"linear.*(guide|rail)", r"\blm.?guide\b", r"\brail\b"],
+        "carriage":  [r"carriage", r"\bblock\b", r"slider", r"\bslide\b"],
+        "screw":     [r"lead.?screw", r"ball.?screw", r"\bbsj\b", r"acme", r"screw.?jack"],
+        "bearing":   [r"\bbearing\b", r"\b6[0-9]{3}\b", r"pillow.?block"],
+        "cylinder":  [r"cylinder", r"\bpiston\b", r"pneumatic"],
+    }
+    present = {r: has_role(p) for r, p in roles.items()}
+
+    composites = []
+    def add_comp(name, need, note):
+        ev = [present[r] for r in need if present.get(r)]
+        if all(present.get(r) for r in need):
+            composites.append({"composite": name, "roles_present": need,
+                               "evidence": ev, "note": note})
+
+    add_comp("Rotary Drive Train", ["motor", "coupling", "shaft"],
+             "motor + coupling + shaft grouped (a rotary drive chain is present)")
+    add_comp("Geared Drive", ["motor", "gear"],
+             "motor + gear/reducer grouped")
+    add_comp("Linear Motion Module", ["guide", "carriage", "screw"],
+             "linear guide + carriage + screw grouped (a linear motion stage is present)")
+    add_comp("Belt/Screw Actuated Slide", ["guide", "carriage"],
+             "guide + carriage grouped (a linear slide is present)")
+    add_comp("Supported Rotating Shaft", ["shaft", "bearing"],
+             "shaft + bearing grouped (a supported rotating member is present)")
+
+    if not detected and not composites:
+        return {"status": "ok", "results": {"detected": [], "composites": [],
+                "note": "No common mechanism or composite matched by name/standard-part rules. "
+                        "Type identification only (experimental), not design-intent analysis."}}
     return {"status": "ok", "results": {
         "detected": detected,
-        "primary": detected[0]["mechanism"],
-        "note": "Mechanism TYPE identification (experimental) from names + standard parts. "
-                "It answers 'what is it', not 'what is it for' — purpose/intent is Professional."}}
+        "primary": detected[0]["mechanism"] if detected else (composites[0]["composite"] if composites else None),
+        "composites": composites,
+        "note": "Mechanism TYPE + composite-pattern identification (experimental) from names "
+                "and standard parts. It reports WHAT is grouped — not what it's for, how power "
+                "flows, or why it's designed this way (that is Professional)."}}
 
 
 DISPATCH.update({"dfa_check": dfa_check, "mechanism_detect": mechanism_detect})
@@ -673,3 +721,157 @@ def category_summary(inp):
 
 DISPATCH.update({"assembly_stats": assembly_stats, "exploded_view": exploded_view,
                  "category_summary": category_summary})
+
+
+# ----------------------- fastener intelligence v2 (Community) -----------------------
+# Rule-based checks on caller-supplied fastener data. Geometry + public engineering
+# rules of thumb only. NOT a preload/torque/joint-stiffness analysis (that needs the
+# real load path and is Professional). Numbers here are first-pass screens.
+
+# Minimum thread engagement as a multiple of nominal diameter, by mating material.
+_ENGAGE_MULT = {"steel": 1.0, "cast_iron": 1.25, "brass": 1.5, "bronze": 1.5,
+                "aluminum": 2.0, "aluminium": 2.0, "magnesium": 2.5, "plastic": 2.5}
+
+
+def fastener_check(inp):
+    """Fastener intelligence v2 — engagement + stack (washer/nut) checks.
+
+    inputs.fasteners: list of joints, each:
+      {name, diameter_mm, mating_material?, thread_engagement_mm?,
+       stack?: ["bolt","washer","plate","washer","nut"]}
+
+    Two rule-based screens:
+      1) engagement_check — is threaded engagement >= recommended (mult x diameter)?
+      2) stack_analysis   — flags a likely missing washer or missing nut from the
+         stack description (no flat bearing surface / no thread termination).
+
+    First-pass screens from public rules of thumb. Real preload / torque / joint-
+    stiffness analysis needs the load path and is Professional.
+    """
+    fasteners = inp.get("fasteners")
+    if fasteners is None:
+        return {"status": "needs_input", "needs": ["inputs.fasteners"],
+                "note": "Provide fasteners [{name, diameter_mm, mating_material?, "
+                        "thread_engagement_mm?, stack?}]. These are rule-of-thumb screens; "
+                        "preload/torque/joint analysis is Professional."}
+
+    results = []
+    for f in fasteners:
+        name = f.get("name", "fastener")
+        d = f.get("diameter_mm")
+        findings = []
+
+        # 1) engagement check
+        eng = f.get("thread_engagement_mm")
+        mat = (f.get("mating_material") or "steel").lower()
+        mult = _ENGAGE_MULT.get(mat, 1.5)
+        if d and eng is not None:
+            recommended = round(mult * d, 2)
+            if eng < recommended:
+                findings.append({"type": "engagement", "severity": "risk",
+                    "detail": f"thread engagement {eng} mm < recommended {recommended} mm "
+                              f"({mult}xD for {mat})",
+                    "suggestion": "deepen the tapped hole, use a longer thread, or a thread insert"})
+            else:
+                findings.append({"type": "engagement", "severity": "ok",
+                    "detail": f"engagement {eng} mm >= {recommended} mm ({mult}xD for {mat})"})
+
+        # 2) stack analysis — look at the layer description
+        stack = [s.lower() for s in (f.get("stack") or [])]
+        if stack:
+            has_head = any(t in stack[0] for t in ("bolt", "screw", "cap"))
+            has_nut = any("nut" in s for s in stack)
+            has_thread_end = has_nut or "tapped" in " ".join(stack) or "blind" in " ".join(stack)
+            washer_count = sum(1 for s in stack if "washer" in s)
+            # missing nut / thread termination
+            if has_head and not has_thread_end:
+                findings.append({"type": "stack", "severity": "risk",
+                    "detail": "through-bolt stack with no nut or tapped/blind termination",
+                    "suggestion": "add a nut, or confirm the far part is tapped"})
+            # washer under nut/head into soft material
+            soft = (f.get("mating_material") or "").lower() in ("aluminum", "aluminium", "plastic", "magnesium")
+            if has_nut and washer_count == 0:
+                findings.append({"type": "stack", "severity": "risk",
+                    "detail": "nutted joint with no washer in the stack",
+                    "suggestion": "add a washer under the nut (and head) to spread bearing load"
+                                  + (" — especially into soft material" if soft else "")})
+            elif soft and washer_count == 0:
+                findings.append({"type": "stack", "severity": "risk",
+                    "detail": "bolt bearing directly on soft material, no washer",
+                    "suggestion": "add a washer to avoid embedment / loss of preload"})
+
+        results.append({"fastener": name, "diameter_mm": d, "findings": findings})
+
+    n_risk = sum(1 for r in results for x in r["findings"] if x["severity"] == "risk")
+    return {"status": "ok", "results": {
+        "fasteners_checked": len(results),
+        "risk_count": n_risk,
+        "details": results,
+        "note": "Rule-of-thumb fastener screens (engagement vs n*D; missing washer/nut "
+                "from the stack). Not a preload/torque/joint-stiffness analysis (Professional)."}}
+
+
+DISPATCH.update({"fastener_check": fastener_check})
+
+
+# ----------------------- adjacency graph (Community, geometric neighbours) -----------------------
+def adjacency_graph(inp):
+    """Geometric adjacency graph — which parts touch / are neighbours.
+
+    Reports WHO IS ADJACENT TO WHOM (pure geometry: parts within a contact tolerance).
+    It does NOT compute how load flows, how parts are constrained/mated, or why they're
+    arranged this way — force flow, constraint graph, and design intent are Professional.
+
+    inputs (either):
+      - edges: [{a, b}]                  caller-supplied adjacency (e.g. from STEP geometry
+                                         or a SolidWorks walk); names or indices
+      - names: [..]                      optional labels for indices
+    Output: neighbour list per node + a Mermaid graph.
+    """
+    edges = inp.get("edges")
+    if edges is None:
+        return {"status": "needs_input", "needs": ["inputs.edges"],
+                "note": "Provide adjacency edges [{a,b}] (parts that touch/are near). "
+                        "Force flow / constraints / intent are Professional."}
+    names = inp.get("names")
+
+    def label(x):
+        if names and isinstance(x, int) and 0 <= x < len(names):
+            return names[x]
+        return str(x)
+
+    neigh = {}
+    norm_edges = []
+    for e in edges:
+        a, b = label(e.get("a")), label(e.get("b"))
+        if a == b:
+            continue
+        norm_edges.append((a, b))
+        neigh.setdefault(a, set()).add(b)
+        neigh.setdefault(b, set()).add(a)
+
+    # Mermaid undirected graph
+    lines = ["graph LR"]
+    seen = set()
+    for a, b in norm_edges:
+        key = tuple(sorted((a, b)))
+        if key in seen:
+            continue
+        seen.add(key)
+        sa = a.replace('"', "'"); sb = b.replace('"', "'")
+        lines.append(f'  {abs(hash(a))%100000}["{sa}"] --- {abs(hash(b))%100000}["{sb}"]')
+    mermaid = "\n".join(lines)
+
+    degree = {k: len(v) for k, v in neigh.items()}
+    hubs = sorted(degree.items(), key=lambda kv: -kv[1])[:5]
+    return {"status": "ok", "results": {
+        "node_count": len(neigh),
+        "edge_count": len(seen),
+        "neighbours": {k: sorted(v) for k, v in neigh.items()},
+        "most_connected": [{"part": k, "neighbours": d} for k, d in hubs],
+        "mermaid": mermaid,
+        "note": "Geometric adjacency only (who touches whom). Force-flow, constraint "
+                "graph, and design intent are Professional."}}
+
+
+DISPATCH.update({"adjacency_graph": adjacency_graph})

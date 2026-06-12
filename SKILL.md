@@ -24,6 +24,8 @@ Advanced engineering is **Professional Edition** (closed source): full/auto FE (
 | Modal analysis | first 3 modes | unlimited modes, prestressed |
 | DFM | basic rules | advanced rule library |
 | DFA | basic (complexity + tool clearance) | sequence / path / time / automation |
+| Fastener checks | engagement + washer/nut stack | preload / torque / joint stiffness |
+| Connectivity | geometric adjacency (who touches whom) | force-flow / constraint graph |
 | Mechanism detection | type ID (experimental) | design intent / purpose / power flow |
 | Assembly tree | structure display | assembly order / sequence |
 | Risk score | simple, multi-factor + contributors | criticality-weighted, FEA/reliability |

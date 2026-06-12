@@ -1,0 +1,10 @@
+{
+  "stage": "0.2", "capability": "adjacency_graph",
+  "model": {"path": "C:/work/drive.STEP", "type": "step"},
+  "units": "SI_mm_t",
+  "inputs": {
+    "names": ["motor", "coupling", "shaft", "bearing", "housing"],
+    "edges": [{"a":0,"b":1},{"a":1,"b":2},{"a":2,"b":3},{"a":3,"b":4},{"a":2,"b":4}]
+  },
+  "_note": "FREE: geometric adjacency (who touches whom). With a STEP path and no edges, it auto-computes them. Force-flow/constraint/intent is Professional."
+}

@@ -21,6 +21,8 @@
 </p>
 
 > **Not another CAD copilot.** Mechanical AI Skill focuses on engineering **understanding and review** — not geometry generation. It's a structured engineering-review layer that lets an AI agent (Claude Code, Codex, Cursor) reason about a mechanical assembly.
+>
+> Put differently: it's the **first AI-native engineering review layer for mechanical assemblies** — not a CAD tool, not a simulation tool, not a DFM tool, but the reasoning layer that sits between an AI agent and all of those.
 
 ```
 Upload assembly → Understand assembly → Engineering review → Engineering report
@@ -118,11 +120,13 @@ No license. Runs standalone. On a STEP file alone (no SolidWorks), it reads stru
 - **Assembly statistics** — top-level subassemblies and their instance counts
 - **Component category summary** — counts by kind (motors, sensors, cylinders, robots …) — statistics, not a procurement list
 - **Exploded structure graph** — a Mermaid diagram of the assembly tree (renders right in the README)
+- **Adjacency graph** — which parts touch / are neighbours (geometric, from a STEP); the *force-flow* and *constraint* graphs are Professional
 
 **Engineering review & diagnostics**
 - **Interference detection** + **clearance check** (SolidWorks, or approximate from STEP)
 - **Rule-based DFM** — deep holes, thin walls, sharp corners (on supplied feature measurements)
 - **Basic DFA** — part/fastener counts, assembly-depth complexity, tool-clearance checks
+- **Fastener checks** — thread-engagement (n×D rule) and missing-washer / missing-nut stack screens
 - **Risk score** — 0–100 with a transparent breakdown (interference · DFM · DFA complexity · tool accessibility · assembly depth) — not a black-box number
 
 **Simulation (real, analytical)**
@@ -132,7 +136,37 @@ No license. Runs standalone. On a STEP file alone (no SolidWorks), it reads stru
 **Reporting**
 - **Engineering report** — any result → clean PDF / HTML with status, tables, assumptions, caveats
 
-> Advanced engineering — fatigue, thermal, CFD, multibody dynamics, topology optimization, automatic load/constraint identification, advanced DFM/DFA, advanced risk scoring, automated design review, procurement — is the **Professional Edition**. Those commands ship here but return `enterprise_required` until the licensed core is installed. Full split in [Editions](#editions).
+> **The Professional Edition is the Engineering Intelligence Layer.** Where the
+> Community Edition answers *what is this assembly* (structure, mechanisms, vendors,
+> first-pass review), Professional answers the questions an experienced engineer asks
+> next:
+> - **Why does this design exist?** — design-intent recognition, function identification
+> - **How does force flow through it?** — automatic load-path and power-flow reasoning
+> - **Where will it fail in real life?** — failure-mode prediction, FMEA, fatigue/thermal/CFD
+> - **How should it be manufactured at scale?** — advanced DFM/DFA, cost, procurement
+>
+> Concretely that means fatigue, thermal, CFD, multibody dynamics, topology
+> optimization, automatic load/constraint identification, advanced DFM/DFA, advanced
+> risk scoring, automated design review, and procurement intelligence. Those commands
+> ship here but return `enterprise_required` until the licensed core is installed.
+> Full split in [Editions](#editions).
+
+## How it compares
+
+It isn't competing with CAD or CAE tools — it sits in a different layer (the AI agent's
+reasoning layer) and *hands off* to them where they're authoritative.
+
+| | What it's for | Runs without a CAD/CAE seat? | Driven by an AI agent? |
+|---|---|---|---|
+| SolidWorks / CAD | model & assemble geometry | no | no |
+| ANSYS / Abaqus (CAE) | high-fidelity simulation | no | no |
+| DFM checkers | manufacturability rules | usually needs the CAD seat | no |
+| **Mechanical AI Skill** | **understand & review an assembly, then route to the right tool** | **yes (STEP-only fallback)** | **yes (Claude Code / Codex / Cursor)** |
+
+The skill answers "what is this, is it sane, where should I look" in plain language from
+a STEP file, then points you to SolidWorks for the authoritative interference check, or
+to the Professional core for full FE / design review. It's the layer that was missing —
+not a replacement for the tools underneath it. See [benchmarks](docs/BENCHMARKS.md).
 
 ## Architecture
 

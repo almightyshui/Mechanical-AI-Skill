@@ -129,3 +129,46 @@ def clearance(path, min_gap_mm=1.0, max_pairs=200):
     tight.sort(key=lambda t: t["gap_mm"])
     return {"solids": n, "tight_clearances": tight, "count": len(tight),
             "min_gap_threshold_mm": min_gap_mm}
+
+
+def adjacency(path, contact_tol_mm=0.5, max_solids=60, max_pairs=2000):
+    """Geometric adjacency: which solids touch / nearly touch (within contact_tol_mm).
+
+    Pure geometry — reports WHICH parts are adjacent (share/near a contact), not how
+    load flows through them or how they're constrained (that is Professional). Uses
+    OCC minimum-distance between solid pairs.
+
+    Scale guard: O(n^2) distance queries; refuses very large assemblies.
+    """
+    from OCP.BRepExtrema import BRepExtrema_DistShapeShape
+    solids = read_structure(path)
+    n = len(solids)
+    if n > max_solids:
+        return {"solids": n, "too_large": True, "edges": [],
+                "message": f"{n} solids exceeds the adjacency limit ({max_solids}); "
+                           f"O(n^2) distance queries would be slow. Use a sub-assembly "
+                           f"or the SolidWorks mate graph."}
+    edges = []
+    checked = 0
+    for i in range(n):
+        for j in range(i + 1, n):
+            if checked >= max_pairs:
+                break
+            checked += 1
+            try:
+                dss = BRepExtrema_DistShapeShape(solids[i]["_shape"], solids[j]["_shape"])
+                if not dss.IsDone():
+                    continue
+                d = dss.Value()
+                if d <= contact_tol_mm:
+                    edges.append({"pair": [i, j], "gap_mm": round(d, 3)})
+            except Exception:
+                continue
+    # degree per solid (how many neighbours)
+    deg = {}
+    for e in edges:
+        for k in e["pair"]:
+            deg[k] = deg.get(k, 0) + 1
+    return {"solids": n, "too_large": False, "edges": edges,
+            "edge_count": len(edges), "degree": deg,
+            "contact_tol_mm": contact_tol_mm}

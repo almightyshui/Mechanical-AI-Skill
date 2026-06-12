@@ -3,6 +3,34 @@
 All notable changes to the Community Edition are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.3.0] - 2026-06-12
+
+Capability expansion driven by real-assembly testing (a 39 MB robotic welding cell).
+
+### Added
+- **STEP geometry fallback** for diagnostics: approximate interference / clearance and
+  BOM run directly from a STEP when SolidWorks isn't present (instead of `deck_only`),
+  with a scale guard that defers very large assemblies to the SolidWorks macro.
+- **Fastener intelligence v2** (`fastener_check`): thread-engagement (n x D by mating
+  material) and missing-washer / missing-nut stack screens.
+- **Composite mechanism patterns**: motor+coupling+shaft -> rotary drive train;
+  guide+carriage+screw -> linear motion module (on top of single-type detection).
+- **Adjacency graph** (`adjacency_graph`): geometric "who touches whom", auto-computed
+  from a STEP; force-flow / constraint graph remain Professional.
+- **Assembly statistics**, **component category summary**, **exploded structure graph**
+  (Mermaid), **vendor summary** — structure/statistics outputs for large cells.
+- Flagship **case study**: robotic welding cell (real 39 MB STEP).
+- **Benchmarks** doc and a **how-it-compares** table.
+
+### Changed
+- DFA proactively flags a likely fastener under-count on STEP-derived assemblies.
+- Repositioned as the **first AI-native engineering review layer**; Professional framed
+  as the **Engineering Intelligence Layer** (why / force-flow / where-it-fails / how-to-make).
+
+### Notes
+- Community now exposes 14 free capabilities. The closed `mechanical_ai_core` engine
+  skeleton (API contracts only) exists separately; advanced engineering stays Professional.
+
 ## [0.2.0] - 2026-06-12
 
 Major capability and positioning update — the skill is now self-sufficient on a STEP
@@ -72,3 +100,4 @@ First public release of the Community Edition — an AI mechanical-engineering C
 
 [0.1.0]: https://github.com/almightyshui/Mechanical-AI-Skill/releases/tag/v0.1.0
 [0.2.0]: https://github.com/almightyshui/Mechanical-AI-Skill/releases/tag/v0.2.0
+[0.3.0]: https://github.com/almightyshui/Mechanical-AI-Skill/releases/tag/v0.3.0

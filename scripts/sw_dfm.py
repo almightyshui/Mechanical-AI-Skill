@@ -13,7 +13,7 @@ import core_bridge as CB
 import tier
 import free_fea
 
-CAPS = {"dfm_check", "dfa_check"}
+CAPS = {"dfm_check", "dfa_check", "fastener_check"}
 
 
 def main():
@@ -41,9 +41,12 @@ def main():
     if r["status"] == "needs_input":
         return C.write(args.out, C.result("needs_input", "1.1", cap,
                        needs_input=r.get("needs", []), caveats=[r.get("note", "")]))
-    caveat = ("Basic DFM rule set; the advanced rule library is Professional."
-              if cap == "dfm_check" else
-              "Basic DFA (complexity + tool clearance); sequence/path/time/automation are Professional.")
+    if cap == "dfm_check":
+        caveat = "Basic DFM rule set; the advanced rule library is Professional."
+    elif cap == "fastener_check":
+        caveat = "Rule-of-thumb fastener screens (engagement, washer/nut); preload/torque/joint analysis is Professional."
+    else:
+        caveat = "Basic DFA (complexity + tool clearance); sequence/path/time/automation are Professional."
     return C.write(args.out, C.result("ok", "1.1", cap, results=r["results"], caveats=[caveat]))
 
 

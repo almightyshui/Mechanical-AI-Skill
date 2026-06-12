@@ -1,13 +1,13 @@
 {
   "name": "mechanical-ai-skill",
   "owner": {"name": "almightyshui", "url": "https://github.com/almightyshui/Mechanical-AI-Skill"},
-  "metadata": {"description": "Mechanical engineering CAD-review skill for AI coding agents — Community Edition.", "version": "0.2.0"},
+  "metadata": {"description": "Mechanical engineering CAD-review skill for AI coding agents — Community Edition.", "version": "0.3.0"},
   "plugins": [
     {
       "name": "mechanical-ai-skill",
       "source": "./",
       "description": "Read SolidWorks/STEP, generate a BOM, explain an assembly, and run interference/clearance diagnostics from an AI agent. Advanced FEA/DFM/optimization are Professional Edition.",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "license": "MIT",
       "keywords": ["mechanical-engineering", "CAD", "SolidWorks", "BOM", "interference-check", "review"]
     }

@@ -22,7 +22,7 @@ import tier
 import free_fea
 
 CAPS = {"mechanism_detect", "assembly_tree", "vendor_summary",
-        "assembly_stats", "exploded_view", "category_summary"}
+        "assembly_stats", "exploded_view", "category_summary", "adjacency_graph"}
 
 
 def main():
@@ -40,6 +40,24 @@ def main():
             return C.write(args.out, CB.enterprise_required(C, "0.2", cap,
                            extra_caveats=[f"Free tier limit: {reason}."]))
         return C.write(args.out, CB.delegate(C, task, "0.2", cap, fn_name=cap))
+
+    # adjacency_graph: if no edges supplied but a STEP path + geometry lib, compute them
+    if cap == "adjacency_graph" and not (task.get("inputs") or {}).get("edges"):
+        path = (task.get("model") or {}).get("path", "")
+        if str(path).lower().endswith((".step", ".stp")):
+            try:
+                sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "connectors"))
+                import step_geometry as SG
+                if SG.available():
+                    adj = SG.adjacency(path, contact_tol_mm=(task.get("inputs") or {}).get("contact_tol_mm", 0.5))
+                    if adj.get("too_large"):
+                        return C.write(args.out, C.result("deck_only", "0.2", cap,
+                                       caveats=[adj["message"]]))
+                    # feed geometric edges into the engine
+                    task.setdefault("inputs", {})["edges"] = [{"a": e["pair"][0], "b": e["pair"][1]} for e in adj["edges"]]
+                    task["inputs"].setdefault("names", [f"solid_{s['index']}" for s in SG.read_structure(path)])
+            except Exception:
+                pass  # fall through; engine will ask for edges
 
     fn = free_fea.DISPATCH.get(cap)
     r = fn(task.get("inputs", {}) or {})

@@ -19,7 +19,8 @@ Everything else -> Professional:
 
 FREE_CAPS = {"static_strength", "modal", "dfm_check", "risk_score",
              "dfa_check", "mechanism_detect", "assembly_tree", "review_summary", "vendor_summary",
-             "assembly_stats", "exploded_view", "category_summary"}
+             "assembly_stats", "exploded_view", "category_summary",
+             "fastener_check", "adjacency_graph"}
 PRO_ONLY_CAPS = {"thermal", "cfd", "fatigue", "motion",
                  "topology_optimize", "parametric_lightweight",
                  "design_review", "procurement_list"}
@@ -109,6 +110,18 @@ def free_tier_check(capability, task):
         # counting by category is free; procurement (sourcing/cost/alternates) is Professional
         if inp.get("sourcing") or inp.get("cost") or inp.get("alternates") or inp.get("suppliers"):
             return False, "procurement (sourcing / cost / alternates / suppliers) is Professional"
+        return True, None
+
+    if capability == "fastener_check":
+        # rule-of-thumb screens are free; preload/torque/joint-stiffness analysis is Professional
+        if inp.get("preload") or inp.get("torque") or inp.get("joint_stiffness"):
+            return False, "preload / torque / joint-stiffness analysis is Professional"
+        return True, None
+
+    if capability == "adjacency_graph":
+        # geometric adjacency is free; force-flow / constraint / intent is Professional
+        if inp.get("force_flow") or inp.get("constraint") or inp.get("intent"):
+            return False, "force-flow / constraint graph / design intent is Professional"
         return True, None
 
     # unknown capability is not a free-tier grant
