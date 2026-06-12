@@ -306,6 +306,18 @@ def dfa_check(inp):
     # DFA score folds in access warnings
     dfa_score = max(0, score - 4 * len(warnings))
 
+    # honest caveat: STEP exports usually strip fastener part names, so a low
+    # fastener count on a large assembly is almost certainly an under-count.
+    notes = ("Basic DFA: complexity stats + geometric tool/insertion checks. "
+             "Assembly sequence, path, time, ergonomics and automation are Professional.")
+    fastener_caveat = None
+    if n_parts >= 40 and n_fast <= 2:
+        fastener_caveat = (f"Only {n_fast} fastener(s) detected among {n_parts} parts — "
+                           "almost certainly an under-count. STEP exports usually drop "
+                           "fastener/toolbox part names; use the original SolidWorks "
+                           "assembly for a true fastener count. Complexity here reflects "
+                           "non-fastener parts only.")
+
     return {"status": "ok", "results": {
         "parts": n_parts,
         "fasteners": n_fast,
@@ -317,8 +329,8 @@ def dfa_check(inp):
         "dfa_score": dfa_score,
         "tool_clearance_warnings": warnings,
         "issues_summary": f"{len(warnings)} tool-clearance warning(s)",
-        "note": "Basic DFA: complexity stats + geometric tool/insertion checks. "
-                "Assembly sequence, path, time, ergonomics and automation are Professional."}}
+        "fastener_caveat": fastener_caveat,
+        "note": notes}}
 
 
 # ----------------------- basic mechanism detection (Community) -----------------------
@@ -524,3 +536,140 @@ def vendor_summary(inp):
 
 
 DISPATCH.update({"vendor_summary": vendor_summary})
+
+
+# ----------------------- assembly statistics (Community) -----------------------
+def assembly_stats(inp):
+    """Top-level assembly statistics — counts per subassembly (instances).
+
+    Pure counting/aggregation of the parsed structure. It reports how many instances
+    sit under each top-level node — it does NOT interpret assembly order or function
+    (Professional).
+
+    inputs.subassemblies: [{name, instances}]  OR
+    inputs.nodes: nested [{name, children?}]   (instances counted from the tree)
+    """
+    subs = inp.get("subassemblies")
+    nodes = inp.get("nodes")
+    if subs is None and nodes is None:
+        return {"status": "needs_input", "needs": ["inputs.subassemblies or inputs.nodes"],
+                "note": "Provide top-level subassemblies with instance counts, or the nested tree."}
+
+    def count_instances(node):
+        kids = node.get("children") or []
+        return 1 + sum(count_instances(k) for k in kids)
+
+    if subs is None:
+        subs = [{"name": n["name"], "instances": count_instances(n) - 1 or 1} for n in nodes]
+
+    subs = sorted(subs, key=lambda x: -(x.get("instances") or 0))
+    total = sum(s.get("instances") or 0 for s in subs)
+    return {"status": "ok", "results": {
+        "top_assemblies": [{"name": s["name"], "instances": s.get("instances")} for s in subs],
+        "subassembly_count": len(subs),
+        "total_instances": total,
+        "note": "Top-level instance counts (statistics only). Assembly order / function "
+                "interpretation is Professional."}}
+
+
+# ----------------------- exploded view (Community, lightweight viz) -----------------------
+def exploded_view(inp):
+    """Render the assembly structure as a Mermaid graph (and ASCII) for the README.
+
+    A visualization of the parsed structure — not a true 3D exploded view, and not
+    an assembly-sequence diagram (that's Professional). Great for screenshots.
+
+    inputs.nodes: nested [{name, children?}]  OR inputs.components: [{name, parent?}]
+    inputs.root_name: optional top label
+    """
+    nodes = inp.get("nodes")
+    comps = inp.get("components")
+    root = inp.get("root_name", "Assembly")
+    if not nodes and not comps:
+        return {"status": "needs_input", "needs": ["inputs.nodes or inputs.components"],
+                "note": "Provide the assembly hierarchy. This visualizes structure, "
+                        "not assembly sequence (Professional)."}
+
+    if comps and not nodes:
+        by_parent = {}
+        roots = []
+        for c in comps:
+            p = c.get("parent")
+            (by_parent.setdefault(p, []) if p else roots).append({"name": c["name"]}) \
+                if p else roots.append({"name": c["name"]})
+        for r in roots:
+            r["children"] = by_parent.get(r["name"], [])
+        nodes = roots
+
+    # Mermaid
+    lines = ["graph TD"]
+    counter = [0]
+    def sid(name):
+        counter[0] += 1
+        return f"n{counter[0]}"
+    def walk(parent_id, parent_name, tree):
+        for node in tree:
+            nid = sid(node["name"])
+            safe = node["name"].replace('"', "'")
+            lines.append(f'  {parent_id}["{parent_name}"] --> {nid}["{safe}"]')
+            kids = node.get("children") or []
+            if kids:
+                walk(nid, node["name"], kids)
+    rootid = sid(root)
+    walk(rootid, root, nodes)
+    mermaid = "\n".join(lines)
+
+    return {"status": "ok", "results": {
+        "mermaid": mermaid,
+        "note": "Structure visualization (Mermaid). Not a 3D exploded view and not an "
+                "assembly-sequence diagram (Professional)."}}
+
+
+# ----------------------- component category summary (Community) -----------------------
+# Count components by category from names. Statistics only — NOT a procurement list,
+# sourcing, supplier or cost analysis (that is Professional procurement intelligence).
+_CATEGORY_RULES = [
+    ("Motors",              [r"\bmotor\b", r"servo", r"stepper"]),
+    ("Sensors",             [r"sensor", r"\bencoder\b", r"proximity", r"photoeye", r"\blimit_switch\b"]),
+    ("Pneumatic Cylinders", [r"pneumatic.*cylinder", r"air.?cylinder", r"\bcylinder\b"]),
+    ("Robot Arms",          [r"\brobot\b", r"manipulator"]),
+    ("Bearings",            [r"\bbearing\b", r"\b6[0-9]{3}\b"]),
+    ("Gears",               [r"\bgear\b", r"pinion"]),
+    ("Linear Guides",       [r"linear.*(guide|rail)", r"\blm.?guide\b"]),
+    ("Fasteners",           [r"\bbolt\b", r"\bscrew\b", r"\bnut\b", r"\bwasher\b"]),
+    ("Couplings",           [r"coupling"]),
+    ("Valves",              [r"\bvalve\b"]),
+]
+
+
+def category_summary(inp):
+    """Count components by category from part names (Community).
+
+    Answers 'how many of each kind of thing' — statistics only. It is NOT a
+    procurement list and does NOT do sourcing, suppliers, alternates, or cost
+    (that is Professional procurement intelligence).
+
+    inputs.components: [{name, qty?}]
+    """
+    comps = inp.get("components")
+    if comps is None:
+        return {"status": "needs_input", "needs": ["inputs.components"],
+                "note": "Provide the component list. This counts by category; procurement "
+                        "(sourcing/cost/alternates) is Professional."}
+    counts = {}
+    for c in comps:
+        name = (c.get("name") or "").lower()
+        qty = c.get("qty", 1) or 1
+        for cat, pats in _CATEGORY_RULES:
+            if any(_re.search(p, name) for p in pats):
+                counts[cat] = counts.get(cat, 0) + qty
+                break  # first matching category only
+    out = sorted(counts.items(), key=lambda kv: -kv[1])
+    return {"status": "ok", "results": {
+        "categories": [{"category": k, "count": v} for k, v in out],
+        "note": "Component counts by category (statistics only). Procurement lists, "
+                "sourcing, alternates and cost are Professional."}}
+
+
+DISPATCH.update({"assembly_stats": assembly_stats, "exploded_view": exploded_view,
+                 "category_summary": category_summary})

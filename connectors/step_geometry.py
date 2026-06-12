@@ -53,11 +53,15 @@ def read_structure(path):
     return solids
 
 
-def interference(path, min_volume_mm3=1.0):
+def interference(path, min_volume_mm3=1.0, max_solids=40, max_pairs=400):
     """Approximate solid-solid interference via pairwise boolean intersection.
 
     Returns overlaps with their volume. APPROXIMATE: depends on STEP tessellation
     and assumes solids are positioned as in the file. Flag as rough; confirm in CAD.
+
+    Scale guard: pairwise boolean is O(n^2) and expensive. For large assemblies
+    (> max_solids), this is refused with a clear message rather than hanging — use
+    SolidWorks Interference Detection on big models.
     """
     from OCP.BRepAlgoAPI import BRepAlgoAPI_Common
     from OCP.GProp import GProp_GProps
@@ -65,9 +69,20 @@ def interference(path, min_volume_mm3=1.0):
 
     solids = read_structure(path)
     n = len(solids)
+    if n > max_solids:
+        return {"solids": n, "interferences": [], "interference_count": None,
+                "total_volume_mm3": None, "too_large": True,
+                "message": f"{n} solids exceeds the STEP-geometry limit ({max_solids}). "
+                           f"Pairwise boolean interference is O(n^2) and would be slow/unreliable "
+                           f"on an assembly this size. Run SolidWorks Interference Detection instead "
+                           f"(use the generated macro), or check a smaller sub-assembly."}
     overlaps = []
+    checked = 0
     for i in range(n):
         for j in range(i + 1, n):
+            if checked >= max_pairs:
+                break
+            checked += 1
             try:
                 common = BRepAlgoAPI_Common(solids[i]["_shape"], solids[j]["_shape"])
                 if not common.IsDone():
@@ -83,7 +98,8 @@ def interference(path, min_volume_mm3=1.0):
     overlaps.sort(key=lambda o: -o["volume_mm3"])
     total = round(sum(o["volume_mm3"] for o in overlaps), 3)
     return {"solids": n, "interferences": overlaps,
-            "interference_count": len(overlaps), "total_volume_mm3": total}
+            "interference_count": len(overlaps), "total_volume_mm3": total,
+            "too_large": False}
 
 
 def clearance(path, min_gap_mm=1.0, max_pairs=200):

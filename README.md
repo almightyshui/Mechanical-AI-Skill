@@ -81,6 +81,19 @@ ENGINEERING REVIEW
 
 See the full write-up: **[Two-stage Gear Reducer Review](docs/CASE_STUDY.md)**.
 
+It can also emit the structure as a diagram that renders right here on GitHub:
+
+```mermaid
+graph TD
+  n1["Gearbox"] --> n2["Housing"]
+  n1["Gearbox"] --> n3["Input Shaft"]
+  n3["Input Shaft"] --> n4["Bearing"]
+  n3["Input Shaft"] --> n5["Gear"]
+  n1["Gearbox"] --> n6["Output Shaft"]
+  n6["Output Shaft"] --> n7["Bearing"]
+  n6["Output Shaft"] --> n8["Gear"]
+```
+
 <details>
 <summary>More screenshots</summary>
 
@@ -102,6 +115,9 @@ No license. Runs standalone. On a STEP file alone (no SolidWorks), it reads stru
 - **Assembly tree** — a clean structure tree to confirm the model parsed
 - **Mechanism Detection (Experimental)** — gear train, timing belt, chain drive, lead screw, robot arm, linear slide, pneumatic cylinder, rotary table
 - **Vendor summary** — detects component brands from names (FANUC, SCHUNK, SMC, THK, Banner …)
+- **Assembly statistics** — top-level subassemblies and their instance counts
+- **Component category summary** — counts by kind (motors, sensors, cylinders, robots …) — statistics, not a procurement list
+- **Exploded structure graph** — a Mermaid diagram of the assembly tree (renders right in the README)
 
 **Engineering review & diagnostics**
 - **Interference detection** + **clearance check** (SolidWorks, or approximate from STEP)

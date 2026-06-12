@@ -99,6 +99,8 @@ def run_step_fallback(task):
     import step_geometry as G
     if cap == "interference_check":
         r = G.interference(path, min_volume_mm3=(task.get("inputs") or {}).get("min_volume_mm3", 1.0))
+        if r.get("too_large"):
+            return None  # too big for STEP boolean -> fall through to deck_only macro
         return C.result("ok", "1.0", cap, results={
             "count": r["interference_count"], "total_volume_mm3": r["total_volume_mm3"],
             "interferences": [{"solids": o["pair"], "volume_mm3": o["volume_mm3"]}
