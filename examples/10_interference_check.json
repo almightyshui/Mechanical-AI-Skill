@@ -1,0 +1,8 @@
+{
+  "stage": "1.0",
+  "capability": "interference_check",
+  "model": {"path": "C:/work/gripper.SLDASM", "type": "assembly"},
+  "units": "SI_mm_t",
+  "inputs": {"treat_coincident_as_clearance": false},
+  "workdir": "C:/work/run1"
+}

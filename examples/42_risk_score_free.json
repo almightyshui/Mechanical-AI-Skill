@@ -1,0 +1,10 @@
+{
+  "stage": "review", "capability": "risk_score",
+  "model": {"path": "C:/work/arm.step", "type": "step"},
+  "units": "SI_mm_t",
+  "inputs": {"signals": {
+    "interferences": 1, "dfm_blockers": 1, "dfm_risks": 2,
+    "min_safety_factor": 1.2, "resonance_risk": true
+  }},
+  "_note": "FREE tier: simple roll-up. Advanced scoring -> Professional."
+}

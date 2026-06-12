@@ -1,0 +1,7 @@
+{
+  "stage": "1.0",
+  "capability": "assembly_error_check",
+  "model": {"path": "C:/work/gripper.SLDASM", "type": "assembly"},
+  "units": "SI_mm_t",
+  "workdir": "C:/work/run1"
+}

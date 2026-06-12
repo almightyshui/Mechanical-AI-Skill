@@ -1,0 +1,36 @@
+name: Feature request
+description: Suggest a capability or improvement
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve?
+      description: The engineering need, not just the feature.
+      placeholder: "When reviewing an assembly I need to ..."
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed capability
+      description: What should the skill do? A new capability, a new check, a new output?
+    validations:
+      required: true
+  - type: dropdown
+    id: tier
+    attributes:
+      label: Which edition does this belong to?
+      description: Community is free/open; advanced engineering is Professional.
+      options:
+        - Community (free, general use)
+        - Professional (advanced FE / rules / optimization)
+        - Not sure
+    validations:
+      required: true
+  - type: textarea
+    id: example
+    attributes:
+      label: Example input / expected output
+      render: json

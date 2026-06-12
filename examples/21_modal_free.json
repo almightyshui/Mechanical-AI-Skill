@@ -1,0 +1,14 @@
+{
+  "stage": "2.0", "capability": "modal",
+  "model": {"path": "C:/work/arm.SLDPRT", "type": "part"},
+  "units": "SI_m_kg_s",
+  "inputs": {
+    "mounting": "cantilever",
+    "length": 0.1,
+    "n_modes": 3,
+    "excitation_hz": 1700,
+    "section": {"shape": "rect", "width": 0.02, "height": 0.02},
+    "material": {"E": 200e9, "rho": 7850}
+  },
+  "_note": "FREE tier: first 3 modes. n_modes > 3 -> Professional."
+}

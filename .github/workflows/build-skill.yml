@@ -1,0 +1,79 @@
+name: Build & validate skill
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write   # needed to attach the .skill to a release on tag
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Validate SKILL.md frontmatter
+        run: |
+          python - <<'PY'
+          import pathlib, re
+          text = pathlib.Path("SKILL.md").read_text(encoding="utf-8")
+          assert text.startswith("---"), "SKILL.md must start with YAML frontmatter"
+          fm = text.split("---", 2)[1]
+          # Parse the two fields we care about without requiring PyYAML.
+          def field(name):
+              m = re.search(rf"^{name}:\s*(.*)$", fm, re.M)
+              return m.group(1).strip() if m else ""
+          name = field("name")
+          desc = field("description").strip().strip("'\"")
+          assert name, "frontmatter missing name"
+          assert desc, "frontmatter missing description"
+          assert len(desc) <= 1024, f"description too long: {len(desc)} > 1024"
+          print(f"OK: name={name!r}, description={len(desc)} chars")
+          PY
+
+      - name: Syntax-check scripts
+        run: |
+          python -m py_compile scripts/*.py
+          for f in scripts/*.sh *.sh; do bash -n "$f"; done
+          echo "scripts OK"
+
+      - name: Smoke-test the contract (no solver needed)
+        run: |
+          chmod +x examples/demo.sh scripts/*.sh scripts/*.py
+          bash examples/demo.sh > /tmp/demo.out 2>&1 || true
+          grep -q "task -> command -> result" /tmp/demo.out || grep -q "status" /tmp/demo.out
+          echo "demo ran"
+
+      - name: Package .skill bundle
+        run: |
+          NAME=mechanical-ai-skill
+          STAGE="/tmp/$NAME"
+          mkdir -p "$STAGE"
+          rsync -a --exclude '.git' --exclude '.github' \
+                   --exclude '__pycache__' --exclude '*.pyc' --exclude '*.skill' \
+                   ./ "$STAGE/"
+          ( cd /tmp && zip -r -q "$GITHUB_WORKSPACE/$NAME.skill" "$NAME" )
+          echo "built $NAME.skill"
+          ls -la "$GITHUB_WORKSPACE/$NAME.skill"
+
+      - name: Upload .skill as build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mechanical-ai-skill-skill
+          path: mechanical-ai-skill.skill
+
+      - name: Attach .skill to release (on tag)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: mechanical-ai-skill.skill

@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+*.skill
+report.pdf
+report.html
+*.swp
+result.json
+run/

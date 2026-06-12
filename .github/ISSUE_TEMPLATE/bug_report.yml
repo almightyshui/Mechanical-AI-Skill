@@ -1,0 +1,56 @@
+name: Bug report
+description: Something didn't work as expected
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for reporting a bug. Please fill in what you can.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you do, and what went wrong?
+      placeholder: I ran sw_diagnostics.py with ... and got ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+  - type: dropdown
+    id: capability
+    attributes:
+      label: Which capability?
+      options:
+        - generate_bom / part_count / standard parts
+        - explain_assembly
+        - interference / mate / clearance check
+        - dfm_check
+        - static_strength / modal
+        - risk_score
+        - report (PDF/HTML)
+        - install / setup
+        - other
+    validations:
+      required: true
+  - type: textarea
+    id: task-json
+    attributes:
+      label: Task JSON (if relevant)
+      description: Paste the task.json you used. Remove anything confidential.
+      render: json
+  - type: textarea
+    id: result
+    attributes:
+      label: Result / error output
+      render: shell
+  - type: input
+    id: env
+    attributes:
+      label: Environment
+      placeholder: OS, Python version, SolidWorks version (if used), agent (Claude Code/Codex/Cursor)
+    validations:
+      required: true

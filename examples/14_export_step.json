@@ -1,0 +1,8 @@
+{
+  "stage": "2.0",
+  "capability": "export_step",
+  "model": {"path": "C:/work/bracket.SLDPRT", "type": "part"},
+  "units": "SI_mm_t",
+  "inputs": {"config": "Default"},
+  "workdir": "C:/work/run1"
+}

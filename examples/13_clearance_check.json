@@ -1,0 +1,8 @@
+{
+  "stage": "1.0",
+  "capability": "clearance_check",
+  "model": {"path": "C:/work/gripper.SLDASM", "type": "assembly"},
+  "units": "SI_mm_t",
+  "inputs": {"min_clearance": 2.0},
+  "workdir": "C:/work/run1"
+}

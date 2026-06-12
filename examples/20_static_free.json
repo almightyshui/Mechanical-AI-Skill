@@ -1,0 +1,13 @@
+{
+  "stage": "2.0", "capability": "static_strength",
+  "model": {"path": "C:/work/beam.SLDPRT", "type": "part"},
+  "units": "SI_m_kg_s",
+  "inputs": {
+    "case": "cantilever_end_load",
+    "length": 0.1,
+    "loads": [{"value_N": 500}],
+    "section": {"shape": "rect", "width": 0.02, "height": 0.02},
+    "material": {"E": 200e9, "yield": 250e6}
+  },
+  "_note": "FREE tier: single load case, analytical. Multi-load / auto-faces -> Professional."
+}

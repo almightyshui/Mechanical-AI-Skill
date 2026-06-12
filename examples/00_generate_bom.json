@@ -1,0 +1,7 @@
+{
+  "stage": "0.1",
+  "capability": "generate_bom",
+  "model": {"path": "C:/work/gripper.SLDASM", "type": "assembly"},
+  "units": "SI_mm_t",
+  "workdir": "C:/work/run1"
+}

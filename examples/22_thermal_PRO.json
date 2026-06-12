@@ -1,0 +1,7 @@
+{
+  "stage": "2.0", "capability": "thermal",
+  "model": {"path": "C:/work/housing.SLDPRT", "type": "part"},
+  "units": "SI_m_kg_s",
+  "inputs": {"material": {"k": 167}, "heat_sources_W": [{"region": "windings", "power_W": 35}]},
+  "_note": "Professional Edition — returns enterprise_required without the core."
+}

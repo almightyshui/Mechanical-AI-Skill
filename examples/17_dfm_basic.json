@@ -1,0 +1,10 @@
+{
+  "stage": "1.1", "capability": "dfm_check",
+  "model": {"path": "C:/work/bracket.SLDPRT", "type": "part"},
+  "units": "SI_mm_t",
+  "inputs": {"features": [
+    {"type": "hole", "name": "oil_passage", "depth": 60, "diameter": 5},
+    {"type": "wall", "name": "side_wall", "thickness": 0.8},
+    {"type": "internal_corner", "name": "pocket_corner", "radius": 0.2}
+  ]}
+}

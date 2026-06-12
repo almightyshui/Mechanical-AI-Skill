@@ -1,0 +1,7 @@
+{
+  "stage": "review",
+  "capability": "design_review",
+  "model": {"path": "C:/work/arm.step", "type": "step"},
+  "units": "SI_mm_t",
+  "_note": "Professional Edition — structure/manufacture/assembly/cost/reliability + risk score."
+}

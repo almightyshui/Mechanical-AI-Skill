@@ -1,0 +1,34 @@
+<svg width="520" height="120" viewBox="0 0 520 120" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2f6fb0"/>
+      <stop offset="1" stop-color="#1c4e80"/>
+    </linearGradient>
+  </defs>
+  <!-- gear icon -->
+  <g transform="translate(60,60)">
+    <g fill="url(#g)">
+      <circle r="34"/>
+      <!-- teeth -->
+      <g>
+        <rect x="-6" y="-46" width="12" height="14" rx="2"/>
+        <rect x="-6" y="32"  width="12" height="14" rx="2"/>
+        <rect x="-46" y="-6" width="14" height="12" rx="2"/>
+        <rect x="32"  y="-6" width="14" height="12" rx="2"/>
+        <rect x="-36" y="-36" width="12" height="13" rx="2" transform="rotate(45 -30 -30)"/>
+        <rect x="24"  y="-36" width="12" height="13" rx="2" transform="rotate(-45 30 -30)"/>
+        <rect x="-36" y="23" width="12" height="13" rx="2" transform="rotate(-45 -30 30)"/>
+        <rect x="24"  y="23" width="12" height="13" rx="2" transform="rotate(45 30 30)"/>
+      </g>
+    </g>
+    <circle r="16" fill="#fff"/>
+    <!-- check mark (review passed) -->
+    <path d="M -8 0 L -2 7 L 10 -8" fill="none" stroke="#2f9e44" stroke-width="5"
+          stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <!-- wordmark -->
+  <text x="116" y="56" font-family="Segoe UI, Helvetica, Arial, sans-serif"
+        font-size="32" font-weight="700" fill="#1a2733">Mechanical AI</text>
+  <text x="116" y="90" font-family="Segoe UI, Helvetica, Arial, sans-serif"
+        font-size="20" font-weight="600" fill="#5a6b7b" letter-spacing="3">REVIEW SKILL</text>
+</svg>
