@@ -1,8 +1,12 @@
 <p align="center">
-  <img src="assets/logo.svg" alt="Mechanical AI Review Skill" width="420">
+  <img src="assets/logo.svg" alt="AI Mechanical Engineering Review Skill" width="420">
 </p>
 
-# mechanical-ai-skill — Community Edition
+<h1 align="center">AI Mechanical Engineering Review Skill</h1>
+
+<p align="center">
+  <b>Upload a STEP assembly. Understand the design. Review engineering risks. Generate reports.</b>
+</p>
 
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT"></a>
@@ -13,69 +17,110 @@
 </p>
 
 <p align="center">
-  <img src="assets/hero.gif" alt="mechanical-ai-skill — upload a STEP, get BOM, interference, risk score, and a PDF report" width="760">
+  <img src="assets/hero.gif" alt="AI Mechanical Engineering Review Skill in action" width="760">
 </p>
 
-
-**An AI agent that reviews your CAD — reads the assembly, builds the BOM, explains how it works, and finds the clashes.**
-
-Point Claude Code, Codex, or Cursor at a SolidWorks assembly (or a STEP file) and ask in plain language: *What's in this? Make me a BOM. How does it work? Does anything interfere? Give me a report.* This skill drives the **real SolidWorks API** and returns structured results — with the honest caveats an engineer would attach.
+> **Not another CAD copilot.** Mechanical AI Skill focuses on engineering **understanding and review** — not geometry generation. It's a structured engineering-review layer that lets an AI agent (Claude Code, Codex, Cursor) reason about a mechanical assembly.
 
 ```
-You → AI agent → mechanical-ai-skill → SolidWorks API / STEP → results → report
+Upload assembly → Understand assembly → Engineering review → Engineering report
 ```
 
-This is the **open Community Edition** — an *AI Mechanical Engineering Review Skill*. It's fully functional on its own for CAD understanding, assembly diagnostics, and reporting.
+## Why
 
-## Free / Open features
+Mechanical assemblies are hard for AI agents to reason about. A large STEP assembly can contain:
 
-Everything here is free and open source — no license, runs standalone:
+- Hundreds of components
+- Complex mating relationships
+- Hidden mechanisms
+- Manufacturing risks
+- Assembly complexity
 
-- **Review summary** — one upload → every metric on one screen (parts, mechanisms, interferences, DFM/DFA warnings, risk score)
-- **BOM generation** — bill of materials with quantities, straight from the assembly
-- **Part count & standard-part ID** — total/unique counts; auto-flags screws, bearings, washers, etc.
-- **Assembly analysis & explanation** — component + mate structure → working principle + suggested assembly order
-- **Interference detection** — clashing pairs with overlap volume; mate errors, over/under-defined, dangling refs
-- **Clearance check** — flags gaps below your minimum
-- **Basic DFA** — part/fastener counts, assembly-depth complexity score, tool-clearance checks
-- **Mechanism detection** *(experimental)* — identifies the type: gear train, timing belt, chain drive, lead screw
-- **Assembly tree** — a clean text tree of the structure, so you can confirm the model parsed correctly
-- **STEP export** — hand geometry off to downstream tools
-- **Static analysis (single load case)** — real stress, deflection & safety factor for common cases
-- **Modal analysis (first 3 modes)** — real natural frequencies + resonance check
-- **Basic DFM** — deep holes, thin walls, sharp internal corners
-- **Risk score** — a 0–100 score with a **transparent breakdown** (not a black-box number). Contributors:
-    - Interference
-    - DFM warnings
-    - DFA complexity (part / fastener counts)
-    - Tool accessibility
-    - Assembly depth
-- **Engineering report** — render any result to a clean PDF/HTML (status, tables, assumptions, caveats)
+**Mechanical AI Skill provides a structured engineering review layer** so an AI agent can go from a raw CAD file to an understanding of the design and a real engineering review — with the honest assumptions and caveats an engineer would attach. This is the open **Community Edition**, fully functional on its own.
 
-Upload a STEP, get **real analysis results** — not a demo. Advanced engineering — **fatigue, thermal, CFD, multibody dynamics, topology optimization, automatic load/constraint identification, advanced DFM/DFA, advanced risk scoring, automated design review, procurement** — is the **Professional Edition** (closed source). The commands for these ship in the open repo but return `enterprise_required` until the licensed core is installed — see the full breakdown in [Editions](#editions).
+## What it is — and is not
 
-## See it work
+**Mechanical AI Skill is _not_:**
+- ❌ A CAD modeling copilot
+- ❌ A generative / geometry-creation tool
+- ❌ A drawing or feature-modeling assistant
 
-Upload a STEP and get a one-glance review summary:
+**Mechanical AI Skill _is_:**
+- ✅ Assembly understanding (structure, BOM, mechanisms)
+- ✅ Engineering review (interference, DFM/DFA, risk)
+- ✅ Mechanical diagnostics (clashes, clearances, complexity)
+- ✅ Engineering reporting (PDF / HTML)
+
+## Example — one STEP in, a full review out
+
+**Input**
+```
+gearbox.step
+```
+
+**Output** *(generated automatically from a single STEP assembly)*
+```
+ASSEMBLY SUMMARY
+  27 Parts · 4 Fasteners · 1 Gear Train
+
+DIAGNOSTICS
+  2 Interferences · 2 DFM Risks
+
+SIMULATION
+  Max Stress: 73 MPa · Safety Factor: 5.67
+
+ENGINEERING REVIEW
+  Risk Score: 71 / 100
+  Main contributors:
+    • Thin-wall geometry
+    • Tool accessibility
+    • Assembly complexity
+```
 
 ![review summary](assets/review_summary.png)
 
+See the full write-up: **[Two-stage Gear Reducer Review](docs/CASE_STUDY.md)**.
 
-| Interference check | Basic DFM | Static + safety factor |
+<details>
+<summary>More screenshots</summary>
+
+| Interference check | Rule-based DFM | Static + safety factor |
 |---|---|---|
 | ![interference](assets/demo1_interference.png) | ![dfm](assets/demo2_dfm.png) | ![static](assets/demo3_static.png) |
 | clashing parts + overlap volume | deep holes / thin walls / sharp corners | stress, deflection, SF, PASS/FAIL |
 
-**Real case study:** [Two-stage Gear Reducer Review](docs/CASE_STUDY.md) — one STEP file
-→ 27-part BOM, 2 interferences, 2 DFM risks, shaft SF 5.67, risk score 71/100.
+</details>
 
-![case study](assets/case_study.png)
+## What the Community Edition already does
+
+No license. Runs standalone. On a STEP file alone (no SolidWorks), it reads structure and runs approximate geometry checks; with SolidWorks it runs the production checks.
+
+**Assembly understanding**
+- **Review summary** — one upload → every metric on one screen
+- **BOM generation** + part count + standard-part identification
+- **Assembly Structure Summary** — components, mates, grouping (*what is there*)
+- **Assembly tree** — a clean structure tree to confirm the model parsed
+- **Mechanism Detection (Experimental)** — gear train, timing belt, chain drive, lead screw, robot arm, linear slide, pneumatic cylinder, rotary table
+- **Vendor summary** — detects component brands from names (FANUC, SCHUNK, SMC, THK, Banner …)
+
+**Engineering review & diagnostics**
+- **Interference detection** + **clearance check** (SolidWorks, or approximate from STEP)
+- **Rule-based DFM** — deep holes, thin walls, sharp corners (on supplied feature measurements)
+- **Basic DFA** — part/fastener counts, assembly-depth complexity, tool-clearance checks
+- **Risk score** — 0–100 with a transparent breakdown (interference · DFM · DFA complexity · tool accessibility · assembly depth) — not a black-box number
+
+**Simulation (real, analytical)**
+- **Static analysis** (single load case) — stress, deflection, safety factor
+- **Modal analysis** (first 3 modes) — natural frequencies + resonance check
+
+**Reporting**
+- **Engineering report** — any result → clean PDF / HTML with status, tables, assumptions, caveats
+
+> Advanced engineering — fatigue, thermal, CFD, multibody dynamics, topology optimization, automatic load/constraint identification, advanced DFM/DFA, advanced risk scoring, automated design review, procurement — is the **Professional Edition**. Those commands ship here but return `enterprise_required` until the licensed core is installed. Full split in [Editions](#editions).
 
 ## Architecture
 
-The skill sits between your AI agent and the real CAD/CAE tools, exposing one stable
-JSON contract. Free capabilities compute locally; Professional capabilities delegate to
-the licensed core (or return `enterprise_required`).
+The skill sits between your AI agent and the real CAD/CAE tools, exposing one stable JSON contract. Free capabilities compute locally; Professional capabilities delegate to the licensed core (or return `enterprise_required`).
 
 ![architecture](assets/architecture.png)
 
@@ -94,7 +139,7 @@ bash mechanical-ai-skill/install.sh all     # Claude Code + Codex (+ Cursor in a
 ```
 Per agent: `install.sh claude | codex | cursor`. Manual paths in [`INSTALL.md`](INSTALL.md).
 
-**Zero config.** No solver, no SolidWorks? It still runs — open commands return a runnable macro (`deck_only`); gated commands say `enterprise_required`. Verify in 30 seconds:
+**Zero config — works on a STEP file alone.** With no SolidWorks, BOM, assembly tree, summary, and **approximate** interference/clearance run directly from the STEP geometry (flagged approximate; production sign-off still uses the SolidWorks check). It still runs — open commands return a runnable macro (`deck_only`); gated commands say `enterprise_required`. Verify in 30 seconds:
 ```bash
 git clone https://github.com/almightyshui/Mechanical-AI-Skill
 cd mechanical-ai-skill
@@ -115,9 +160,9 @@ It ends with a machine-readable summary an agent would report:
 ## What you do with it
 
 ### Make a BOM / understand a model
-> **"Generate a BOM and explain this assembly."**
+> **"Generate a BOM and summarize this assembly's structure."**
 
-Walks the SolidWorks tree → bill of materials (item, part, quantity), unique-part and total counts, standard-part flags (screws, bearings, washers). For the **structure summary**, it returns the component + mate structure and a plain inventory (what is in the assembly, how parts are grouped). It describes *what is there* — interpreting *why it's designed that way*, the working principle, and power flow is the Professional Edition.
+Walks the SolidWorks tree → bill of materials (item, part, quantity), unique-part and total counts, standard-part flags (screws, bearings, washers). For the **structure summary**, it returns the component + mate structure and a plain inventory — *what is there*. Interpreting *why it's designed that way* (working principle, power flow, design intent) is the Professional Edition.
 
 ### Check an assembly
 > **"Check this assembly for interference."**
@@ -138,7 +183,9 @@ Any result — BOM or diagnostics — renders to a clean PDF (or HTML, zero-depe
 | STEP export · basic PDF/HTML report | ✅ | ✅ |
 | **Static analysis** | single load case | multi-load, contact, nonlinear, auto-faces |
 | **Modal analysis** | first 3 modes | unlimited modes, prestressed |
-| **DFM** | basic rules | advanced rule library + DFA |
+| **DFM** | rule-based (supplied features) | advanced rule library |
+| **DFA** | basic (complexity, tool clearance) | sequence, path, time, automation |
+| **Mechanism / vendor detection** | type & brand ID | design intent, sourcing, alternates |
 | **Risk score** | simple roll-up | criticality-weighted, code-aware |
 | Fatigue · thermal · CFD · multibody dynamics | — | ✅ |
 | Topology optimization / lightweighting | — | ✅ |
@@ -179,7 +226,7 @@ python scripts/sw_understand.py --task task.json --out result.json
 ## Roadmap
 
 **Available now (Community, free)**
-- BOM, part count, standard-part identification, assembly explanation
+- BOM, part count, standard-part ID, assembly structure summary, mechanism & vendor detection
 - Interference / mate / clearance diagnostics
 - Basic DFM (deep holes, thin walls, sharp corners)
 - Static analysis (single load case), modal (first 3 modes)

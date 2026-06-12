@@ -18,7 +18,7 @@ Everything else -> Professional:
 """
 
 FREE_CAPS = {"static_strength", "modal", "dfm_check", "risk_score",
-             "dfa_check", "mechanism_detect", "assembly_tree", "review_summary"}
+             "dfa_check", "mechanism_detect", "assembly_tree", "review_summary", "vendor_summary"}
 PRO_ONLY_CAPS = {"thermal", "cfd", "fatigue", "motion",
                  "topology_optimize", "parametric_lightweight",
                  "design_review", "procurement_list"}
@@ -87,6 +87,12 @@ def free_tier_check(capability, task):
         return True, None
 
     if capability == "review_summary":
+        return True, None
+
+    if capability == "vendor_summary":
+        # brand detection is free; sourcing/pricing/alternates is Professional
+        if inp.get("sourcing") or inp.get("pricing") or inp.get("alternates"):
+            return False, "sourcing / pricing / alternates is Professional"
         return True, None
 
     # unknown capability is not a free-tier grant

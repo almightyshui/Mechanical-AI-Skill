@@ -235,6 +235,15 @@ def risk_score(inp):
     tcw = s.get("tool_clearance_warnings")
     if tcw:
         deduct(min(10, 4*tcw), f"{tcw} tool-clearance issue(s)", med)
+    subs = s.get("subassemblies")
+    if subs and subs > 8:
+        deduct(min(8, (subs - 8)//2 + 2), f"many subassemblies ({subs})", low)
+    inst = s.get("instances")
+    if inst and inst > 200:
+        deduct(min(8, (inst - 200)//100 + 3), f"high instance count ({inst})", med)
+    mech = s.get("mechanism_count")
+    if mech and mech > 3:
+        deduct(min(6, (mech - 3)*2), f"many distinct mechanisms ({mech})", low)
 
     score = max(0, min(100, score))
     contributors.sort(key=lambda c: -c["points"])
@@ -270,6 +279,8 @@ def dfa_check(inp):
     n_fast = len(fasteners)
     fast_types = sorted({c.get("fastener_type") or c.get("name") for c in fasteners})
     depth = int(inp.get("assembly_depth", 0) or 0)
+    subs = int(inp.get("subassemblies", 0) or 0)
+    instances = int(inp.get("instances", 0) or 0)
 
     # complexity score (0-100, higher = simpler/better) — transparent linear rule
     score = 100
@@ -277,6 +288,8 @@ def dfa_check(inp):
     if n_fast > 20:   score -= min(20, (n_fast - 20) // 4)
     if len(fast_types) > 4: score -= min(15, (len(fast_types) - 4) * 3)
     if depth > 4:     score -= min(15, (depth - 4) * 4)
+    if subs > 8:      score -= min(10, (subs - 8) // 2)
+    if instances > 200: score -= min(10, (instances - 200) // 100 + 2)
     score = max(0, min(100, score))
 
     # basic assemblability (geometric tool-space / insertion checks supplied by caller)
@@ -298,6 +311,8 @@ def dfa_check(inp):
         "fasteners": n_fast,
         "fastener_types": len(fast_types),
         "assembly_depth": depth,
+        "subassemblies": subs,
+        "instances": instances,
         "complexity_score": score,
         "dfa_score": dfa_score,
         "tool_clearance_warnings": warnings,
@@ -311,10 +326,14 @@ def dfa_check(inp):
 import re as _re
 
 _MECH_RULES = [
-    ("Gear Train",        [r"\bgear\b", r"spur", r"helical", r"pinion", r"\bring_gear\b", r"\bsun\b", r"\bplanet\b"]),
-    ("Timing Belt Drive", [r"timing", r"\bpulley\b", r"\bbelt\b", r"sprocket.*belt"]),
-    ("Chain Drive",       [r"\bchain\b", r"\bsprocket\b", r"roller_chain"]),
-    ("Lead Screw System", [r"lead.?screw", r"ball.?screw", r"\bscrew_shaft\b", r"\bnut_block\b", r"acme"]),
+    ("Gear Train",         [r"\bgear\b", r"spur", r"helical", r"pinion", r"\bring_gear\b", r"\bsun\b", r"\bplanet\b"]),
+    ("Timing Belt Drive",  [r"timing", r"\bpulley\b", r"\bbelt\b", r"sprocket.*belt"]),
+    ("Chain Drive",        [r"\bchain\b", r"\bsprocket\b", r"roller_chain"]),
+    ("Lead Screw System",  [r"lead.?screw", r"ball.?screw", r"\bscrew_shaft\b", r"\bnut_block\b", r"acme"]),
+    ("Robot Arm",          [r"\brobot\b", r"\baxis[\s_-]?\d", r"\bj[1-6]\b", r"manipulator", r"\blink[\s_-]?\d", r"fanuc", r"kuka", r"abb_irb", r"ur\d+"]),
+    ("Linear Slide",       [r"linear[\s_-]?(guide|rail|slide|stage)", r"\blm[\s_-]?guide\b", r"\bcarriage\b", r"\brail_block\b", r"thk"]),
+    ("Pneumatic Cylinder", [r"pneumatic", r"\bcylinder\b", r"\bpiston\b", r"air[\s_-]?cylinder", r"smc", r"festo", r"bimba"]),
+    ("Rotary Table",       [r"rotary[\s_-]?(table|stage|axis)", r"\bturntable\b", r"index(er|ing)[\s_-]?table", r"\bgoniometer\b"]),
 ]
 
 
@@ -436,6 +455,9 @@ def review_summary(inp):
                 "note": "Provide the metrics gathered from the free checks to summarize."}
     rows = [
         ("Parts",               m.get("parts")),
+        ("Instances",           m.get("instances")),
+        ("Subassemblies",       m.get("subassemblies")),
+        ("Leaf Parts",          m.get("leaf_parts")),
         ("Fasteners",           m.get("fasteners")),
         ("Assembly Depth",      m.get("assembly_depth")),
         ("Detected Mechanisms", m.get("detected_mechanisms")),
@@ -457,3 +479,48 @@ def review_summary(inp):
 
 
 DISPATCH.update({"review_summary": review_summary})
+
+
+# ----------------------- vendor summary (Community) -----------------------
+# Identify component vendors/brands from part names. Pure name matching — "what
+# brands are in here", not sourcing/pricing/alternates (those are Professional).
+_VENDOR_RULES = {
+    "FANUC": [r"fanuc"], "KUKA": [r"kuka"], "ABB": [r"\babb\b|irb\d"],
+    "Universal Robots": [r"\bur[3-9,10,16,20]\b|universal.?robot"],
+    "SCHUNK": [r"schunk"], "SMC": [r"\bsmc\b"], "Festo": [r"festo"],
+    "Bimba": [r"bimba"], "Banner": [r"banner"], "Keyence": [r"keyence"],
+    "THK": [r"\bthk\b"], "NSK": [r"\bnsk\b"], "SKF": [r"\bskf\b"],
+    "Bosch Rexroth": [r"rexroth|bosch"], "Misumi": [r"misumi"],
+    "Nook": [r"\bnook\b"], "Parker": [r"parker"], "Omron": [r"omron"],
+    "Allen-Bradley": [r"allen.?bradley|\bab_"], "IGUS": [r"\bigus\b"],
+}
+
+
+def vendor_summary(inp):
+    """Detect component vendors/brands from part names (Community).
+
+    Answers 'what brands are in this assembly'. It does NOT do sourcing, pricing,
+    alternates, or supply-chain analysis — that is Professional (procurement intel).
+
+    inputs.components: [{name}]
+    """
+    comps = inp.get("components")
+    if comps is None:
+        return {"status": "needs_input", "needs": ["inputs.components"],
+                "note": "Provide the component list. Vendor detection is name-based; "
+                        "sourcing / pricing / alternates is Professional."}
+    names = [(c.get("name") or "") for c in comps]
+    found = {}
+    for vendor, pats in _VENDOR_RULES.items():
+        hits = [n for n in names if any(_re.search(p, n.lower()) for p in pats)]
+        if hits:
+            found[vendor] = {"count": len(hits), "examples": sorted(set(hits))[:5]}
+    detected = sorted(found.items(), key=lambda kv: -kv[1]["count"])
+    return {"status": "ok", "results": {
+        "vendors": [{"vendor": v, **d} for v, d in detected],
+        "vendor_count": len(detected),
+        "note": "Brand detection from part names (Community). Sourcing, pricing, "
+                "alternate-part and supply-chain analysis is Professional."}}
+
+
+DISPATCH.update({"vendor_summary": vendor_summary})

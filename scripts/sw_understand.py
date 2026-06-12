@@ -115,6 +115,32 @@ def main():
         return C.write(args.out, C.result("needs_input", "0.1", cap, needs_input=["model.path"]))
 
     if not C.has_pywin32():
+        path = task["model"]["path"]
+        is_step = str(path).lower().endswith((".step", ".stp"))
+        # STEP fallback: read solids geometrically (no part names, but real counts)
+        if is_step and cap in ("generate_bom", "part_count"):
+            try:
+                sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "connectors"))
+                import step_geometry as G
+                if G.available():
+                    solids = G.read_structure(path)
+                    n = len(solids)
+                    if cap == "part_count":
+                        res = {"solid_count": n, "method": "STEP geometry"}
+                    else:
+                        res = {"bom": [{"item": i + 1, "part": f"solid_{s['index']}",
+                                        "qty": 1, "volume_mm3": s["volume_mm3"],
+                                        "standard_part": False} for i, s in enumerate(solids)],
+                               "unique_parts": n, "total_instances": n,
+                               "method": "STEP geometry"}
+                    return C.write(args.out, C.result("ok", "0.1", cap, results=res,
+                        assumptions=["No SolidWorks; solids read directly from the STEP file.",
+                                     "Geometry-level: solids are not named components and identical "
+                                     "parts are not auto-grouped (a true named BOM needs the SW assembly)."],
+                        caveats=["STEP-level BOM: counts solids, not named components. For named parts, "
+                                 "quantities, and standard-part flags, use the SolidWorks assembly."]))
+            except Exception:
+                pass  # fall through to macro
         wd = task.get("workdir", "."); os.makedirs(wd, exist_ok=True)
         mpath = os.path.join(wd, "bom_export_macro.swp")
         open(mpath, "w").write(MACRO.format(path=task["model"]["path"]))

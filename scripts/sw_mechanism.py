@@ -21,7 +21,7 @@ import core_bridge as CB
 import tier
 import free_fea
 
-CAPS = {"mechanism_detect", "assembly_tree"}
+CAPS = {"mechanism_detect", "assembly_tree", "vendor_summary"}
 
 
 def main():
@@ -45,9 +45,12 @@ def main():
     if r["status"] == "needs_input":
         return C.write(args.out, C.result("needs_input", "0.2", cap,
                        needs_input=r.get("needs", []), caveats=[r.get("note", "")]))
-    caveat = ("Mechanism TYPE identification (experimental); design-intent / purpose / "
-              "power-flow is Professional." if cap == "mechanism_detect" else
-              "Assembly structure tree; assembly order / sequence / intent is Professional.")
+    if cap == "mechanism_detect":
+        caveat = "Mechanism TYPE identification (experimental); design-intent/purpose/power-flow is Professional."
+    elif cap == "vendor_summary":
+        caveat = "Brand detection from names; sourcing/pricing/alternates is Professional."
+    else:
+        caveat = "Assembly structure tree; assembly order/sequence/intent is Professional."
     return C.write(args.out, C.result("ok", "0.2", cap, results=r["results"], caveats=[caveat]))
 
 

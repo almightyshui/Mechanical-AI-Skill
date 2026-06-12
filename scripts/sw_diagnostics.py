@@ -86,6 +86,43 @@ def run_real(task):
     return C.result("ok", "1.0", cap, results=res, assumptions=assumptions, caveats=caveats)
 
 
+def run_step_fallback(task):
+    """No SolidWorks, but a STEP file + cadquery: do approximate geometry.
+
+    Real boolean-based interference / distance-based clearance. APPROXIMATE — flagged
+    as such; production sign-off still uses the SolidWorks check. Returns None if the
+    capability isn't geometry-checkable here, so the caller can fall to deck_only.
+    """
+    cap = task["capability"]
+    path = task["model"]["path"]
+    sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "connectors"))
+    import step_geometry as G
+    if cap == "interference_check":
+        r = G.interference(path, min_volume_mm3=(task.get("inputs") or {}).get("min_volume_mm3", 1.0))
+        return C.result("ok", "1.0", cap, results={
+            "count": r["interference_count"], "total_volume_mm3": r["total_volume_mm3"],
+            "interferences": [{"solids": o["pair"], "volume_mm3": o["volume_mm3"]}
+                              for o in r["interferences"]],
+            "solids_analyzed": r["solids"], "method": "STEP geometry (approximate)"},
+            assumptions=["No SolidWorks; computed from STEP solids via boolean intersection.",
+                         "Solids identified by geometry, not named components."],
+            caveats=["APPROXIMATE: volumes depend on STEP tessellation and how the file "
+                     "stores solids; a small overlap may be a coincident/press-fit face. "
+                     "Confirm in SolidWorks before sign-off — this is a rough screen, not the production check."])
+    if cap == "clearance_check":
+        mc = (task.get("inputs") or {}).get("min_clearance")
+        if mc is None:
+            return C.result("needs_input", "1.0", cap, needs_input=["inputs.min_clearance"])
+        r = G.clearance(path, min_gap_mm=mc)
+        return C.result("ok", "1.0", cap, results={
+            "min_clearance": mc, "violations": r["tight_clearances"],
+            "count": r["count"], "solids_analyzed": r["solids"],
+            "method": "STEP geometry (approximate)"},
+            assumptions=["No SolidWorks; minimum distance between STEP solids via OCC extrema."],
+            caveats=["APPROXIMATE: distances from STEP geometry; confirm tight gaps in CAD."])
+    return None  # not geometry-checkable here -> deck_only
+
+
 def main():
     args = C.standard_args(__doc__)
     task = C.load_task(args.task)
@@ -97,6 +134,24 @@ def main():
     if not ok or not task["model"].get("path"):
         return C.write(args.out, C.result("needs_input", "1.0", cap,
                        needs_input=["model.path"]))
+    # STEP geometry fallback: no SolidWorks, but a .step/.stp + cadquery available
+    if not C.has_pywin32():
+        path = task["model"]["path"]
+        is_step = str(path).lower().endswith((".step", ".stp"))
+        try:
+            sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "connectors"))
+            import step_geometry as G
+            geom_ok = G.available()
+        except Exception:
+            geom_ok = False
+        if is_step and geom_ok:
+            try:
+                res = run_step_fallback(task)
+                if res is not None:
+                    return C.write(args.out, res)
+            except Exception as e:
+                return C.write(args.out, C.result("failed", "1.0", cap,
+                               caveats=[f"STEP geometry check failed: {e}"]))
     if not C.has_pywin32():
         macro = MACRO_TEMPLATE.format(path=task["model"]["path"])
         wd = task.get("workdir", ".")
