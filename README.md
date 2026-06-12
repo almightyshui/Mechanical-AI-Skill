@@ -5,6 +5,14 @@
 # mechanical-ai-skill — Community Edition
 
 <p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT"></a>
+  <a href="https://github.com/almightyshui/Mechanical-AI-Skill/actions"><img src="https://github.com/almightyshui/Mechanical-AI-Skill/actions/workflows/build-skill.yml/badge.svg" alt="Build"></a>
+  <img src="https://img.shields.io/badge/edition-Community%20(free)-2f9e44" alt="Edition: Community (free)">
+  <img src="https://img.shields.io/badge/agents-Claude%20Code%20%C2%B7%20Codex%20%C2%B7%20Cursor-5a6b7b" alt="Agents">
+  <img src="https://img.shields.io/badge/python-3-blue" alt="Python 3">
+</p>
+
+<p align="center">
   <img src="assets/hero.gif" alt="mechanical-ai-skill — upload a STEP, get BOM, interference, risk score, and a PDF report" width="760">
 </p>
 
