@@ -79,7 +79,7 @@ ENGINEERING REVIEW
 
 ![review summary](assets/review_summary.png)
 
-See the full write-up: **[Two-stage Gear Reducer Review](docs/CASE_STUDY.md)**.
+Full write-ups: **[Two-stage Gear Reducer Review](docs/CASE_STUDY.md)** · **[Robotic Welding Cell — real 39 MB STEP](docs/CASE_STUDY_welding_cell.md)** (142 parts, dual-station FANUC M-16iB cell, vendors + mechanism detected from a STEP alone).
 
 It can also emit the structure as a diagram that renders right here on GitHub:
 
