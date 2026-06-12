@@ -1,0 +1,22 @@
+{
+  "stage": "review",
+  "capability": "review_summary",
+  "model": {
+    "path": "C:/work/reducer.SLDASM",
+    "type": "assembly"
+  },
+  "units": "SI_mm_t",
+  "inputs": {
+    "metrics": {
+      "parts": 138,
+      "fasteners": 62,
+      "assembly_depth": 7,
+      "detected_mechanisms": 2,
+      "interferences": 3,
+      "dfm_warnings": 5,
+      "dfa_warnings": 2,
+      "risk_score": 72
+    }
+  },
+  "_note": "FREE: aggregates free-check metrics into one summary."
+}

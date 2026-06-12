@@ -31,21 +31,35 @@ This is the **open Community Edition** — an *AI Mechanical Engineering Review 
 
 Everything here is free and open source — no license, runs standalone:
 
+- **Review summary** — one upload → every metric on one screen (parts, mechanisms, interferences, DFM/DFA warnings, risk score)
 - **BOM generation** — bill of materials with quantities, straight from the assembly
 - **Part count & standard-part ID** — total/unique counts; auto-flags screws, bearings, washers, etc.
 - **Assembly analysis & explanation** — component + mate structure → working principle + suggested assembly order
 - **Interference detection** — clashing pairs with overlap volume; mate errors, over/under-defined, dangling refs
 - **Clearance check** — flags gaps below your minimum
+- **Basic DFA** — part/fastener counts, assembly-depth complexity score, tool-clearance checks
+- **Mechanism detection** *(experimental)* — identifies the type: gear train, timing belt, chain drive, lead screw
+- **Assembly tree** — a clean text tree of the structure, so you can confirm the model parsed correctly
 - **STEP export** — hand geometry off to downstream tools
 - **Static analysis (single load case)** — real stress, deflection & safety factor for common cases
 - **Modal analysis (first 3 modes)** — real natural frequencies + resonance check
 - **Basic DFM** — deep holes, thin walls, sharp internal corners
-- **Risk score (simple)** — a 0–100 score with High/Med/Low issues, rolled up from the checks above
+- **Risk score** — a 0–100 score with a **transparent breakdown** (not a black-box number). Contributors:
+    - Interference
+    - DFM warnings
+    - DFA complexity (part / fastener counts)
+    - Tool accessibility
+    - Assembly depth
 - **Engineering report** — render any result to a clean PDF/HTML (status, tables, assumptions, caveats)
 
 Upload a STEP, get **real analysis results** — not a demo. Advanced engineering — **fatigue, thermal, CFD, multibody dynamics, topology optimization, automatic load/constraint identification, advanced DFM/DFA, advanced risk scoring, automated design review, procurement** — is the **Professional Edition** (closed source). The commands for these ship in the open repo but return `enterprise_required` until the licensed core is installed — see the full breakdown in [Editions](#editions).
 
 ## See it work
+
+Upload a STEP and get a one-glance review summary:
+
+![review summary](assets/review_summary.png)
+
 
 | Interference check | Basic DFM | Static + safety factor |
 |---|---|---|
@@ -103,7 +117,7 @@ It ends with a machine-readable summary an agent would report:
 ### Make a BOM / understand a model
 > **"Generate a BOM and explain this assembly."**
 
-Walks the SolidWorks tree → bill of materials (item, part, quantity), unique-part and total counts, standard-part flags (screws, bearings, washers). For "explain," it hands the agent the component + mate structure so it can describe the working principle, separate core parts from hardware, and propose an assembly order.
+Walks the SolidWorks tree → bill of materials (item, part, quantity), unique-part and total counts, standard-part flags (screws, bearings, washers). For the **structure summary**, it returns the component + mate structure and a plain inventory (what is in the assembly, how parts are grouped). It describes *what is there* — interpreting *why it's designed that way*, the working principle, and power flow is the Professional Edition.
 
 ### Check an assembly
 > **"Check this assembly for interference."**
@@ -119,7 +133,7 @@ Any result — BOM or diagnostics — renders to a clean PDF (or HTML, zero-depe
 
 | Capability | Community (free) | Professional |
 |---|:--:|:--:|
-| BOM · part count · standard-part ID · assembly explainer | ✅ | ✅ |
+| BOM · part count · standard-part ID · assembly **structure summary** | ✅ | ✅ |
 | Interference · mate · clearance diagnostics | ✅ | ✅ |
 | STEP export · basic PDF/HTML report | ✅ | ✅ |
 | **Static analysis** | single load case | multi-load, contact, nonlinear, auto-faces |
@@ -173,7 +187,7 @@ python scripts/sw_understand.py --task task.json --out result.json
 - Claude Code plugin, Codex/Cursor install
 
 **Next (Community)**
-- Richer STEP parsing (part hierarchy, material identification)
+- Richer STEP parsing (part hierarchy, material metadata extraction when available)
 - More DFM geometric checks; basic DFA (fastener counts, assembly steps)
 - MCP server wrapper (BOM / interference / DFM / risk / report tools)
 - A 30-second and a 3-minute demo video

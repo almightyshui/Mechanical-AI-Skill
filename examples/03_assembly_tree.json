@@ -1,0 +1,12 @@
+{
+  "stage": "0.2", "capability": "assembly_tree",
+  "model": {"path": "C:/work/gearbox.SLDASM", "type": "assembly"},
+  "units": "SI_mm_t",
+  "inputs": {"root_name": "Gearbox", "nodes": [
+    {"name": "Housing"},
+    {"name": "Input Shaft", "children": [{"name": "Bearing"}, {"name": "Gear"}]},
+    {"name": "Output Shaft", "children": [{"name": "Bearing"}, {"name": "Gear"}]},
+    {"name": "Fasteners", "children": [{"name": "M6 bolt x8"}]}
+  ]},
+  "_note": "FREE: renders structure. Assembly order/sequence/intent is Professional."
+}

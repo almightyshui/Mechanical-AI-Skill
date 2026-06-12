@@ -1,0 +1,18 @@
+{
+  "stage": "1.1", "capability": "dfa_check",
+  "model": {"path": "C:/work/reducer.SLDASM", "type": "assembly"},
+  "units": "SI_mm_t",
+  "inputs": {
+    "assembly_depth": 5,
+    "components": [
+      {"name": "housing"}, {"name": "cover"}, {"name": "shaft"}, {"name": "gear"},
+      {"name": "M6 bolt", "fastener": true, "fastener_type": "M6 socket"},
+      {"name": "M6 bolt 2", "fastener": true, "fastener_type": "M6 socket"},
+      {"name": "M8 bolt", "fastener": true, "fastener_type": "M8 hex"}
+    ],
+    "access_checks": [
+      {"name": "M6 cover bolt", "tool": "hex key", "required_mm": 15, "available_mm": 8}
+    ]
+  },
+  "_note": "FREE basic DFA: complexity + tool clearance. Sequence/path/time is Professional."
+}

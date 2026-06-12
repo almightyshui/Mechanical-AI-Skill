@@ -180,37 +180,280 @@ def dfm_check(inp):
 def risk_score(inp):
     """Simple weighted roll-up from free-tier signals the caller passes in.
 
-    inputs.signals: {interferences:int, dfm_blockers:int, dfm_risks:int,
-                     min_safety_factor:float|None, resonance_risk:bool|None}
-    Produces a 0-100 score + High/Med/Low issue buckets. Advanced scoring
-    (weighted by criticality, code compliance, full physics) is Professional.
+    inputs.signals: {interferences, dfm_blockers, dfm_risks, min_safety_factor,
+                     resonance_risk, parts, fasteners, assembly_depth,
+                     tool_clearance_warnings}
+    Produces a 0-100 score, a transparent list of contributors (each with the points
+    it cost), and High/Med/Low buckets. Advanced scoring (criticality-weighted,
+    code-aware, FEA/reliability/maintenance dimensions) is Professional.
     """
     s = inp.get("signals")
     if s is None:
         return {"status": "needs_input", "needs": ["inputs.signals"],
                 "note": "Provide signals from the free checks {interferences, dfm_blockers, "
-                        "dfm_risks, min_safety_factor, resonance_risk}. Advanced scoring is Professional."}
+                        "dfm_risks, min_safety_factor, resonance_risk, parts, fasteners, "
+                        "assembly_depth, tool_clearance_warnings}. Advanced scoring is Professional."}
     score = 100
     high, med, low = [], [], []
+    contributors = []   # transparent breakdown: each factor and the points it cost
+
+    def deduct(points, label, bucket=None):
+        nonlocal score
+        if points <= 0:
+            return
+        score -= points
+        contributors.append({"factor": label, "points": points})
+        if bucket is not None:
+            bucket.append(label)
+
+    # --- design-integrity signals ---
     if s.get("interferences"):
-        score -= 25; high.append(f"{s['interferences']} interference(s) detected")
+        deduct(25, f"{s['interferences']} interference(s)", high)
     if s.get("dfm_blockers"):
-        score -= 15; high.append(f"{s['dfm_blockers']} DFM blocker(s)")
+        deduct(15, f"{s['dfm_blockers']} DFM blocker(s)", high)
     sf = s.get("min_safety_factor")
     if sf is not None:
         if sf < 1.0:
-            score -= 30; high.append(f"safety factor {sf} < 1 (predicted to yield)")
+            deduct(30, f"safety factor {sf} < 1 (predicted to yield)", high)
         elif sf < 1.5:
-            score -= 12; med.append(f"safety factor {sf} below typical 1.5 target")
+            deduct(12, f"safety factor {sf} below typical 1.5 target", med)
     if s.get("resonance_risk"):
-        score -= 12; med.append("1st mode within 20% of excitation (resonance risk)")
+        deduct(12, "1st mode within 20% of excitation (resonance risk)", med)
     if s.get("dfm_risks"):
-        score -= min(10, 2*s["dfm_risks"]); low.append(f"{s['dfm_risks']} DFM cost/risk item(s)")
+        deduct(min(10, 2*s["dfm_risks"]), f"{s['dfm_risks']} DFM cost/risk item(s)", low)
+
+    # --- assembly-complexity signals (from basic DFA) ---
+    parts = s.get("parts")
+    if parts and parts > 50:
+        deduct(min(12, (parts - 50)//8 + 4), f"high part count ({parts})", med)
+    fasteners = s.get("fasteners")
+    if fasteners and fasteners > 20:
+        deduct(min(10, (fasteners - 20)//4 + 3), f"high fastener count ({fasteners})", med)
+    depth = s.get("assembly_depth")
+    if depth and depth > 4:
+        deduct(min(8, (depth - 4)*2), f"deep assembly tree (depth {depth})", low)
+    tcw = s.get("tool_clearance_warnings")
+    if tcw:
+        deduct(min(10, 4*tcw), f"{tcw} tool-clearance issue(s)", med)
+
     score = max(0, min(100, score))
+    contributors.sort(key=lambda c: -c["points"])
     return {"status": "ok", "results": {"overall_score": score,
+            "contributors": contributors,
             "high": high, "med": med, "low": low, "scoring": "simple",
-            "note": "Simple risk score from free-tier checks; advanced scoring is Professional."}}
+            "note": "Simple multi-factor risk score (design integrity + assembly complexity). "
+                    "Advanced scoring — criticality-weighted, code-aware, with FEA / reliability / "
+                    "maintenance dimensions — is Professional."}}
 
 
 DISPATCH = {"static_strength": static_strength, "modal": modal,
             "dfm_check": dfm_check, "risk_score": risk_score}
+
+
+# ----------------------- basic DFA (Community) -----------------------
+def dfa_check(inp):
+    """Basic Design-for-Assembly: complexity stats + geometric assemblability.
+
+    Geometry + rules only (no sequence/path/time prediction — those are Professional).
+    inputs:
+      components: [{name, fastener?:bool, fastener_type?}]   (from assembly walk)
+      assembly_depth: int                                    (tree depth)
+      access_checks: [{name, tool, required_mm, available_mm}]  (optional tool-space checks)
+    """
+    comps = inp.get("components")
+    if comps is None:
+        return {"status": "needs_input", "needs": ["inputs.components"],
+                "note": "Provide the component list [{name, fastener?}] from the assembly walk. "
+                        "Assembly sequence/path/time prediction is Professional."}
+    n_parts = len(comps)
+    fasteners = [c for c in comps if c.get("fastener")]
+    n_fast = len(fasteners)
+    fast_types = sorted({c.get("fastener_type") or c.get("name") for c in fasteners})
+    depth = int(inp.get("assembly_depth", 0) or 0)
+
+    # complexity score (0-100, higher = simpler/better) — transparent linear rule
+    score = 100
+    if n_parts > 50:  score -= min(25, (n_parts - 50) // 8)
+    if n_fast > 20:   score -= min(20, (n_fast - 20) // 4)
+    if len(fast_types) > 4: score -= min(15, (len(fast_types) - 4) * 3)
+    if depth > 4:     score -= min(15, (depth - 4) * 4)
+    score = max(0, min(100, score))
+
+    # basic assemblability (geometric tool-space / insertion checks supplied by caller)
+    warnings = []
+    for a in inp.get("access_checks", []) or []:
+        req = a.get("required_mm"); avail = a.get("available_mm")
+        if req is not None and avail is not None and avail < req:
+            warnings.append({"feature": a.get("name", "fastener"),
+                             "tool": a.get("tool", "tool"),
+                             "required_mm": req, "available_mm": avail,
+                             "severity": "warning",
+                             "issue": "insufficient tool clearance",
+                             "suggestion": "reposition, recess, or use a lower-profile drive"})
+    # DFA score folds in access warnings
+    dfa_score = max(0, score - 4 * len(warnings))
+
+    return {"status": "ok", "results": {
+        "parts": n_parts,
+        "fasteners": n_fast,
+        "fastener_types": len(fast_types),
+        "assembly_depth": depth,
+        "complexity_score": score,
+        "dfa_score": dfa_score,
+        "tool_clearance_warnings": warnings,
+        "issues_summary": f"{len(warnings)} tool-clearance warning(s)",
+        "note": "Basic DFA: complexity stats + geometric tool/insertion checks. "
+                "Assembly sequence, path, time, ergonomics and automation are Professional."}}
+
+
+# ----------------------- basic mechanism detection (Community) -----------------------
+# "What is it?" — name + standard-part + simple-topology rules. NOT purpose/intent.
+import re as _re
+
+_MECH_RULES = [
+    ("Gear Train",        [r"\bgear\b", r"spur", r"helical", r"pinion", r"\bring_gear\b", r"\bsun\b", r"\bplanet\b"]),
+    ("Timing Belt Drive", [r"timing", r"\bpulley\b", r"\bbelt\b", r"sprocket.*belt"]),
+    ("Chain Drive",       [r"\bchain\b", r"\bsprocket\b", r"roller_chain"]),
+    ("Lead Screw System", [r"lead.?screw", r"ball.?screw", r"\bscrew_shaft\b", r"\bnut_block\b", r"acme"]),
+]
+
+
+def mechanism_detect(inp):
+    """Identify the mechanism TYPE from part names + standard parts (Community).
+
+    Answers 'what is it' (Gear Train / Timing Belt Drive / Chain Drive / Lead Screw
+    System) with a confidence and the evidence parts. It does NOT infer purpose,
+    power flow, design intent, or failure modes — those are Professional.
+
+    inputs: components: [{name, standard_part?}]
+    """
+    comps = inp.get("components")
+    if comps is None:
+        return {"status": "needs_input", "needs": ["inputs.components"],
+                "note": "Provide the component list. This identifies the mechanism TYPE only; "
+                        "purpose / power-flow / design-intent inference is Professional."}
+    names = [(c.get("name") or "").lower() for c in comps]
+    detected = []
+    for mech, patterns in _MECH_RULES:
+        hits = [n for n in names if any(_re.search(p, n) for p in patterns)]
+        if hits:
+            # crude confidence: more matching parts -> higher, capped
+            conf = min(95, 40 + 12 * len(hits))
+            detected.append({"mechanism": mech, "confidence": conf,
+                             "evidence": sorted(set(hits))[:8]})
+    detected.sort(key=lambda d: -d["confidence"])
+    if not detected:
+        return {"status": "ok", "results": {"detected": [],
+                "note": "No common mechanism matched by name/standard-part rules. "
+                        "This is type identification only (experimental), not design-intent analysis."}}
+    return {"status": "ok", "results": {
+        "detected": detected,
+        "primary": detected[0]["mechanism"],
+        "note": "Mechanism TYPE identification (experimental) from names + standard parts. "
+                "It answers 'what is it', not 'what is it for' — purpose/intent is Professional."}}
+
+
+DISPATCH.update({"dfa_check": dfa_check, "mechanism_detect": mechanism_detect})
+
+
+# ----------------------- assembly tree (Community, lightweight viz) -----------------------
+def assembly_tree(inp):
+    """Render a lightweight text tree of the assembly structure (no 3D).
+
+    Confirms 'parsing succeeded' at a glance. Pure structure display — it does NOT
+    explain why parts are arranged this way or how they assemble (Professional).
+
+    inputs.nodes: nested [{name, children?:[...]}], OR
+    inputs.components: flat [{name, parent?}]  (parent = name of parent node)
+    inputs.root_name: optional label for the top node
+    """
+    nodes = inp.get("nodes")
+    comps = inp.get("components")
+    root_name = inp.get("root_name", "Assembly")
+
+    def render(tree, prefix="", lines=None):
+        if lines is None:
+            lines = []
+        for i, node in enumerate(tree):
+            last = i == len(tree) - 1
+            branch = "└── " if last else "├── "
+            lines.append(prefix + branch + node["name"])
+            kids = node.get("children") or []
+            if kids:
+                ext = "    " if last else "│   "
+                render(kids, prefix + ext, lines)
+        return lines
+
+    if nodes:
+        tree = nodes
+    elif comps:
+        # build a 2-level tree from flat list with optional parent
+        by_parent = {}
+        roots = []
+        for c in comps:
+            p = c.get("parent")
+            if p:
+                by_parent.setdefault(p, []).append({"name": c["name"]})
+            else:
+                roots.append({"name": c["name"]})
+        for r in roots:
+            r["children"] = by_parent.get(r["name"], [])
+        tree = roots
+    else:
+        return {"status": "needs_input", "needs": ["inputs.nodes or inputs.components"],
+                "note": "Provide the assembly hierarchy (nested nodes or flat components with parent). "
+                        "This renders the structure; assembly order / intent is Professional."}
+
+    lines = [root_name] + render(tree)
+    text = "\n".join(lines)
+    # count nodes
+    def count(t):
+        return sum(1 + count(n.get("children") or []) for n in t)
+    return {"status": "ok", "results": {
+        "tree_text": text,
+        "node_count": count(tree),
+        "note": "Assembly structure tree (parse confirmation + layout). It shows what is "
+                "in the assembly, not why it's arranged this way or how to assemble it (Professional)."}}
+
+
+DISPATCH.update({"assembly_tree": assembly_tree})
+
+
+# ----------------------- review summary (Community, one-glance overview) -----------------------
+def review_summary(inp):
+    """One-glance Mechanical Review Summary — aggregates the free-tier metrics.
+
+    Pure aggregation of already-computed numbers the caller passes in. It does NOT
+    re-run analyses or add interpretation — it's a dashboard of what the free checks
+    found. Great for a screenshot/GIF.
+
+    inputs.metrics: {parts, fasteners, assembly_depth, detected_mechanisms,
+                     interferences, dfm_warnings, dfa_warnings, risk_score}
+    """
+    m = inp.get("metrics")
+    if m is None:
+        return {"status": "needs_input", "needs": ["inputs.metrics"],
+                "note": "Provide the metrics gathered from the free checks to summarize."}
+    rows = [
+        ("Parts",               m.get("parts")),
+        ("Fasteners",           m.get("fasteners")),
+        ("Assembly Depth",      m.get("assembly_depth")),
+        ("Detected Mechanisms", m.get("detected_mechanisms")),
+        ("Interferences",       m.get("interferences")),
+        ("DFM Warnings",        m.get("dfm_warnings")),
+        ("DFA Warnings",        m.get("dfa_warnings")),
+        ("Risk Score",          m.get("risk_score")),
+    ]
+    rows = [(k, v) for k, v in rows if v is not None]
+    width = max((len(k) for k, _ in rows), default=10)
+    lines = ["Mechanical Review Summary", "=" * 30]
+    for k, v in rows:
+        suffix = " / 100" if k == "Risk Score" else ""
+        lines.append(f"{k.ljust(width)} : {v}{suffix}")
+    return {"status": "ok", "results": {
+        "summary_text": "\n".join(lines),
+        "metrics": {k: v for k, v in rows},
+        "note": "One-glance aggregation of the free checks (no new analysis, no interpretation)."}}
+
+
+DISPATCH.update({"review_summary": review_summary})

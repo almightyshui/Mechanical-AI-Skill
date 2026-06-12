@@ -17,10 +17,11 @@ Everything else -> Professional:
   - advanced DFM/DFA, advanced risk scoring, design review, procurement, advanced report
 """
 
-FREE_CAPS = {"static_strength", "modal", "dfm_check", "risk_score"}
+FREE_CAPS = {"static_strength", "modal", "dfm_check", "risk_score",
+             "dfa_check", "mechanism_detect", "assembly_tree", "review_summary"}
 PRO_ONLY_CAPS = {"thermal", "cfd", "fatigue", "motion",
                  "topology_optimize", "parametric_lightweight",
-                 "dfa_check", "design_review", "procurement_list"}
+                 "design_review", "procurement_list"}
 
 MAX_FREE_MODES = 3
 
@@ -65,6 +66,27 @@ def free_tier_check(capability, task):
     if capability == "risk_score":
         if inp.get("advanced"):
             return False, "advanced risk scoring (Professional)"
+        return True, None
+
+    if capability == "dfa_check":
+        # basic DFA is free; sequence/path/time/automation/optimization are Professional
+        if inp.get("advanced") or inp.get("sequence") or inp.get("path") or inp.get("time_estimate"):
+            return False, "advanced DFA (sequence/path/time/automation) is Professional"
+        return True, None
+
+    if capability == "mechanism_detect":
+        # type identification is free; purpose/intent/power-flow is Professional
+        if inp.get("intent") or inp.get("purpose") or inp.get("power_flow"):
+            return False, "design-intent / purpose / power-flow inference is Professional"
+        return True, None
+
+    if capability == "assembly_tree":
+        # structure display is free; assembly order / sequence is Professional
+        if inp.get("sequence") or inp.get("order"):
+            return False, "assembly sequence / order is Professional"
+        return True, None
+
+    if capability == "review_summary":
         return True, None
 
     # unknown capability is not a free-tier grant

@@ -17,13 +17,16 @@ Advanced engineering is **Professional Edition** (closed source): full/auto FE (
 
 | Capability | Community (free) | Professional |
 |---|---|---|
-| BOM, part count, standard-part ID, assembly explainer | ✅ | ✅ |
+| BOM, part count, standard-part ID, assembly structure summary | ✅ | ✅ |
 | Interference / mate / clearance diagnostics | ✅ | ✅ |
 | STEP export, basic PDF/HTML report | ✅ | ✅ |
 | Static analysis | single load case | multi-load, contact, nonlinear, auto-faces |
 | Modal analysis | first 3 modes | unlimited modes, prestressed |
-| DFM | basic rules | advanced rule library + DFA |
-| Risk score | simple roll-up | criticality-weighted, code-aware |
+| DFM | basic rules | advanced rule library |
+| DFA | basic (complexity + tool clearance) | sequence / path / time / automation |
+| Mechanism detection | type ID (experimental) | design intent / purpose / power flow |
+| Assembly tree | structure display | assembly order / sequence |
+| Risk score | simple, multi-factor + contributors | criticality-weighted, FEA/reliability |
 | Fatigue · thermal · CFD · multibody dynamics | `enterprise_required` | ✅ |
 | Optimization / lightweighting | `enterprise_required` | ✅ |
 | Auto load / constraint / mesh ID | `enterprise_required` | ✅ |
@@ -38,6 +41,7 @@ Every capability is one command: `--task task.json` → `--out result.json`. Res
 ```bash
 # Community (open) — work standalone
 python scripts/sw_understand.py  --task task.json --out result.json   # BOM / count / std parts / explain
+python scripts/sw_mechanism.py   --task task.json --out result.json   # mechanism type (experimental) · assembly tree
 python scripts/sw_diagnostics.py --task task.json --out result.json   # interference / mates / clearance
 python scripts/sw_export.py      --task task.json --out result.json   # export STEP
 python scripts/report_pdf.py     --results r1.json --out report.pdf   # basic PDF/HTML report
@@ -54,7 +58,7 @@ All commands degrade gracefully: if SolidWorks isn't installed the open commands
 ## What the Community Edition does
 
 ### CAD understanding (stage 0.x) — `sw_understand.py`
-`generate_bom` (item / part / qty / standard-part flag), `part_count`, `identify_standard_parts`, and `explain_assembly` (returns the component + mate tree; the agent writes the working-principle explanation and a suggested assembly order). See `references/cad_understanding.md`.
+`generate_bom` (item / part / qty / standard-part flag), `part_count`, `identify_standard_parts`, and `explain_assembly` — a **structure summary** that returns the component + mate tree and a plain inventory of what's in the assembly. It describes *what is there*; interpreting *why* (working principle, power flow, design intent) is the Professional Edition. See `references/cad_understanding.md`.
 
 ### Assembly diagnostics (stage 1.0) — `sw_diagnostics.py`
 `interference_check` (overlap volume per clashing pair, distinguishing likely press-fits from errors), `assembly_error_check` (rebuild / dangling refs), `mate_conflict_check` (over/under-defined), `clearance_check` (min-gap violations). See `references/assembly_diagnostics.md`.

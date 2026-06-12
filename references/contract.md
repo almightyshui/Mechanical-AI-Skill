@@ -9,13 +9,14 @@ Every capability is a command: `--task task.json` → `--out result.json`. Resul
 ## Community capabilities (this repo, open)
 - **Stage 0.x — CAD understanding** (`scripts/sw_understand.py`): `generate_bom`,
   `part_count`, `identify_standard_parts`, `explain_assembly`.
+- **Stage 0.x — mechanism detection** (`scripts/sw_mechanism.py`): `mechanism_detect` — identify mechanism TYPE (gear train / belt / chain / lead screw) + confidence + evidence.
 - **Stage 1.0 — diagnostics** (`scripts/sw_diagnostics.py`): `interference_check`,
   `assembly_error_check`, `mate_conflict_check`, `clearance_check`.
 - **Geometry** (`scripts/sw_export.py`): `export_step`.
 - **Reporting** (`scripts/report_pdf.py`): render result JSON(s) → basic PDF/HTML.
 
 ## Professional capabilities (closed; commands return `enterprise_required`)
-- DFM/DFA (`scripts/sw_dfm.py`): `dfm_check`, `dfa_check`
+- DFM/DFA (`scripts/sw_dfm.py`): `dfm_check`, `dfa_check` (basic)
 - Automated FEA/CAE (`scripts/run_analysis.py`): `static_strength`, `modal`,
   `thermal`, `fatigue`, `cfd`, `motion`
 - Optimization (`scripts/optimize.py`): `topology_optimize`, `parametric_lightweight`

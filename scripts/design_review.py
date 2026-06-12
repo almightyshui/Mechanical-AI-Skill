@@ -13,7 +13,7 @@ import core_bridge as CB
 import tier
 import free_fea
 
-CAPS = {"design_review", "risk_score", "procurement_list"}
+CAPS = {"design_review", "risk_score", "procurement_list", "review_summary"}
 
 
 def main():
@@ -32,14 +32,16 @@ def main():
                            extra_caveats=[f"Free tier limit: {reason}."]))
         return C.write(args.out, CB.delegate(C, task, "review", cap, fn_name=cap))
 
-    # FREE simple risk score
-    r = free_fea.risk_score(task.get("inputs", {}) or {})
+    # FREE: risk_score (multi-factor) or review_summary (aggregation)
+    fn = free_fea.DISPATCH.get(cap)
+    r = fn(task.get("inputs", {}) or {})
     if r["status"] == "needs_input":
         return C.write(args.out, C.result("needs_input", "review", cap,
                        needs_input=r.get("needs", []), caveats=[r.get("note", "")]))
-    return C.write(args.out, C.result("ok", "review", cap, results=r["results"],
-                   caveats=["Simple risk score from free-tier checks; advanced scoring "
-                            "(criticality weighting, code compliance, full physics) is Professional."]))
+    caveat = ("Multi-factor risk score from free checks; criticality-weighted / FEA / "
+              "reliability scoring is Professional." if cap == "risk_score" else
+              "One-glance aggregation of free-check metrics; no new analysis or interpretation.")
+    return C.write(args.out, C.result("ok", "review", cap, results=r["results"], caveats=[caveat]))
 
 
 if __name__ == "__main__":

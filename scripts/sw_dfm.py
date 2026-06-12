@@ -35,13 +35,16 @@ def main():
         return C.write(args.out, CB.delegate(C, task, "1.1", cap,
                        fn_name=cap))
 
-    # FREE basic DFM
-    r = free_fea.dfm_check(task.get("inputs", {}) or {})
+    # FREE basic DFM / DFA — dispatch by capability
+    fn = free_fea.DISPATCH.get(cap)
+    r = fn(task.get("inputs", {}) or {})
     if r["status"] == "needs_input":
         return C.write(args.out, C.result("needs_input", "1.1", cap,
                        needs_input=r.get("needs", []), caveats=[r.get("note", "")]))
-    return C.write(args.out, C.result("ok", "1.1", cap, results=r["results"],
-                   caveats=["Basic DFM rule set; the advanced rule library is Professional."]))
+    caveat = ("Basic DFM rule set; the advanced rule library is Professional."
+              if cap == "dfm_check" else
+              "Basic DFA (complexity + tool clearance); sequence/path/time/automation are Professional.")
+    return C.write(args.out, C.result("ok", "1.1", cap, results=r["results"], caveats=[caveat]))
 
 
 if __name__ == "__main__":

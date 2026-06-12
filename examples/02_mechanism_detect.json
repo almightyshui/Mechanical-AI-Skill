@@ -1,0 +1,10 @@
+{
+  "stage": "0.2", "capability": "mechanism_detect",
+  "model": {"path": "C:/work/gearbox.SLDASM", "type": "assembly"},
+  "units": "SI_mm_t",
+  "inputs": {"components": [
+    {"name": "sun_gear"}, {"name": "planet_gear"}, {"name": "ring_gear"},
+    {"name": "carrier"}, {"name": "input_shaft"}, {"name": "6205 bearing"}
+  ]},
+  "_note": "FREE: identifies mechanism TYPE. Purpose/intent/power-flow is Professional."
+}
