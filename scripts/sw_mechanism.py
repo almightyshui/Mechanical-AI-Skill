@@ -23,7 +23,8 @@ import tier
 import free_fea
 
 CAPS = {"mechanism_detect", "assembly_tree", "vendor_summary",
-        "assembly_stats", "exploded_view", "category_summary", "adjacency_graph"}
+        "assembly_stats", "exploded_view", "category_summary", "adjacency_graph",
+        "review_summary"}
 
 # Fields large enough to blow up an agent's context on a big assembly. We keep a
 # short preview inline and write the full value to a sidecar file. Counts/notes
@@ -89,6 +90,103 @@ def _slim_results(results, cap, out_path, detail):
     return slim, wrote
 
 
+def _executive_review(task, args):
+    """Executive Review — one command, one engineering verdict.
+
+    Unlike the old aggregate-what-you're-given review, this orchestrates the
+    free checks itself: it reads the STEP/zip/folder once, derives components /
+    nodes / subassemblies, runs mechanism / vendor / category / BOM / risk, and
+    returns an engineer-facing summary plus pointers to the per-analysis
+    artifacts. Honest throughout: every figure is computed, nothing invented; if
+    a sub-check can't run it's omitted, not faked.
+    """
+    path = (task.get("model") or {}).get("path", "")
+    if not path:
+        return C.write(args.out, C.result("needs_input", "0.2", "review_summary",
+            needs_input=["model.path"],
+            caveats=['Point the task at the assembly, e.g. '
+                     '{"capability":"review_summary","model":{"path":"C:/path/to/assembly_or_folder"}}']))
+    sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "connectors"))
+    try:
+        import step_context as CTX
+    except Exception:
+        CTX = None
+    if CTX is None or not CTX.is_step(path):
+        return C.write(args.out, C.result("needs_input", "0.2", "review_summary",
+            needs_input=["a readable STEP/zip/folder at model.path"],
+            caveats=["Could not resolve a STEP source from the given path."]))
+
+    components = CTX.extract_components(path)
+    nodes = CTX.extract_nodes(path)
+    subs = CTX.extract_subassemblies(path)
+    bom = CTX.extract_bom(path)
+
+    def _depth(ns):
+        return 1 + max((_depth(n.get("children", [])) for n in ns), default=0) if ns else 0
+
+    summary = {
+        "assembly": {
+            "unique_parts": bom["unique_parts"],
+            "total_instances": bom["total_instances"],
+            "top_level_subassemblies": len(subs),
+            "assembly_depth": _depth(nodes),
+        },
+        "source": "STEP-text",
+        "geometry": False,
+    }
+
+    # mechanism / vendor / category — reuse the free engines on extracted components
+    mech = free_fea.DISPATCH["mechanism_detect"]({"components": components})
+    if mech.get("status") == "ok":
+        summary["mechanisms"] = mech["results"]
+    ven = free_fea.DISPATCH["vendor_summary"]({"components": components})
+    if ven.get("status") == "ok":
+        summary["vendors"] = ven["results"]
+    cat = free_fea.DISPATCH["category_summary"]({"components": components})
+    if cat.get("status") == "ok":
+        summary["categories"] = cat["results"]
+
+    # risk — feed the signals we actually have (transparent, partial is fine)
+    signals = {"parts": bom["unique_parts"], "assembly_depth": summary["assembly"]["assembly_depth"]}
+    risk = free_fea.DISPATCH["risk_score"]({"signals": signals})
+    if risk.get("status") == "ok":
+        summary["risk"] = risk["results"]
+
+    # top BOM rows inline; full BOM to sidecar
+    wd = task.get("workdir", "."); 
+    try:
+        os.makedirs(wd, exist_ok=True)
+    except Exception:
+        wd = "."
+    artifacts = {}
+    full_items = [{"item": i + 1, "part": it["name"], "qty": it["qty"]}
+                  for i, it in enumerate(bom["items"])]
+    if len(full_items) > 15:
+        fp = os.path.join(wd, "review_bom.json")
+        try:
+            with open(fp, "w", encoding="utf-8") as f:
+                f.write(json.dumps(full_items, indent=2, ensure_ascii=False))
+            artifacts["full_bom"] = fp
+        except Exception:
+            pass
+        summary["top_parts"] = full_items[:15]
+        summary["top_parts_note"] = f"top 15 of {len(full_items)} parts; full list in artifacts.full_bom"
+    else:
+        summary["top_parts"] = full_items
+
+    caveats = [
+        "Executive Review aggregates the free Community checks computed from STEP text "
+        "(names + NAUO). All figures are computed; none invented. No geometry-level data "
+        "(volume/mass/material/contact) — that needs a geometry kernel or SolidWorks. "
+        "Design intent, load paths, and functional reasoning are Professional.",
+    ]
+    if bom["unresolved_instances"]:
+        caveats.append(f"{bom['unresolved_instances']} instance(s) had unresolved names "
+                       f"(counted, not itemized).")
+    return C.write(args.out, C.result("ok", "0.2", "review_summary",
+                   results=summary, artifacts=artifacts, caveats=caveats))
+
+
 def main():
     args = C.standard_args(__doc__)
     task = C.load_task(args.task)
@@ -96,6 +194,9 @@ def main():
     if cap not in CAPS:
         return C.write(args.out, C.result("failed", "0.2", cap,
                        caveats=[f"this command handles {sorted(CAPS)}"]))
+
+    if cap == "review_summary":
+        return _executive_review(task, args)
 
     allowed, reason = tier.free_tier_check(cap, task)
     if not allowed:
@@ -139,8 +240,16 @@ def main():
     fn = free_fea.DISPATCH.get(cap)
     r = fn(task.get("inputs", {}) or {})
     if r["status"] == "needs_input":
+        extra = []
+        if not path:
+            extra.append(
+                "No model.path was provided, so nothing could be auto-extracted. "
+                "Point the task at the STEP file / zip / folder, e.g.: "
+                '{"capability":"' + str(cap) + '","model":{"path":"C:/path/to/assembly_or_folder"}} '
+                "— then this command auto-extracts what it needs (no manual component list required).")
         return C.write(args.out, C.result("needs_input", "0.2", cap,
-                       needs_input=r.get("needs", []), caveats=[r.get("note", "")]))
+                       needs_input=r.get("needs", []),
+                       caveats=[r.get("note", "")] + extra))
     if cap == "mechanism_detect":
         caveat = "Mechanism TYPE identification (experimental); design-intent/purpose/power-flow is Professional."
     elif cap == "vendor_summary":

@@ -8,11 +8,44 @@ references/contract.md. Result is `ok` only when explicitly built that way, so t
 import json, sys, os
 
 
+def normalize_task(task):
+    """Forgive the common shapes agents write instead of the canonical schema.
+
+    Agents repeatedly produce near-misses: `task_type` instead of `capability`,
+    `input_file`/`file`/`path` at the top level instead of `model.path`, the
+    path under `model.file`, etc. Rather than fail/needs_input and make the agent
+    retry, we map these onto the canonical form. The canonical schema still works
+    unchanged; this only fills gaps.
+    """
+    if not isinstance(task, dict):
+        return task
+    # capability aliases
+    if not task.get("capability"):
+        for k in ("task_type", "command", "operation", "cap"):
+            if task.get(k):
+                task["capability"] = task[k]
+                break
+    # model.path aliases
+    model = task.get("model")
+    if not isinstance(model, dict):
+        model = {}
+    if not model.get("path"):
+        for k in ("input_file", "file", "path", "model_path", "step", "assembly_path"):
+            v = task.get(k) or (model.get(k) if isinstance(model, dict) else None)
+            if v:
+                model["path"] = v
+                break
+    if model:
+        task["model"] = model
+    # detail alias at root -> inputs.detail handled by callers; leave as-is
+    return task
+
+
 def load_task(path):
     # Explicit UTF-8: task files routinely carry CJK paths/names, and the
     # platform default (GBK on Windows) raises UnicodeDecodeError on them.
     with open(path, encoding="utf-8") as f:
-        return json.load(f)
+        return normalize_task(json.load(f))
 
 
 def _headline(status, capability, results, needs_input, artifacts, upgrade):
@@ -26,7 +59,8 @@ def _headline(status, capability, results, needs_input, artifacts, upgrade):
     if status == "ok":
         bits = []
         for k in ("node_count", "edge_count", "part_count", "count",
-                  "component_count", "subassembly_count"):
+                  "component_count", "subassembly_count", "unique_parts",
+                  "total_instances"):
             if isinstance(results, dict) and k in results:
                 bits.append(f"{results[k]} {k.replace('_', ' ')}")
         detail = ("; ".join(bits)) if bits else "completed"

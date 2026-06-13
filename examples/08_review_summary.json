@@ -1,0 +1,6 @@
+{
+  "stage": "0.2", "capability": "review_summary",
+  "model": {"path": "C:/work/robot_welder.STEP", "type": "assembly"},
+  "units": "SI_mm_t",
+  "_note": "FREE: one command in, an Executive Review out. Reads the STEP/zip/folder itself and orchestrates the free checks (assembly scale, mechanisms, vendors, categories, name-level BOM, risk score). No need to pre-run the other commands. Every figure is computed; nothing invented. Design intent / load paths / functional reasoning are Professional."
+}

@@ -146,6 +146,66 @@ def main():
                         caveats=["STEP-level BOM: counts solids, not named components. For named parts, "
                                  "quantities, and standard-part flags, use the SolidWorks assembly."]))
             except Exception:
+                pass  # geometry path unavailable; try text-level next
+
+            # Text-level fallback: name-level BOM / part count from STEP entities.
+            # No geometry kernel needed, so this works anywhere. Honest about its
+            # limits (no volume/mass/material).
+            try:
+                import step_context as SC2
+                if cap == "part_count":
+                    comps = SC2.extract_components(path)
+                    subs = SC2.extract_subassemblies(path)
+                    res = {"unique_parts": len(comps),
+                           "top_level_subassemblies": len(subs),
+                           "method": "STEP-text",
+                           "geometry": False}
+                    return C.write(args.out, C.result("ok", "0.1", cap, results=res,
+                        assumptions=["No SolidWorks/geometry kernel; counts derived from STEP "
+                                     "PRODUCT/NAUO entities (name-level)."],
+                        caveats=["Name-level count: unique named parts, not geometric solids. "
+                                 "Volume/mass/material need a geometry kernel or SolidWorks."]))
+                else:
+                    bom = SC2.extract_bom(path)
+                    if bom["items"] or bom["unresolved_instances"]:
+                        full_items = [{"item": i + 1, "part": it["name"], "qty": it["qty"],
+                                       "standard_part": None} for i, it in enumerate(bom["items"])]
+                        res = {"unique_parts": bom["unique_parts"],
+                               "total_instances": bom["total_instances"],
+                               "unresolved_instances": bom["unresolved_instances"],
+                               "source": bom["source"],
+                               "geometry": False,
+                               "confidence": bom["confidence"],
+                               "method": "STEP-text"}
+                        artifacts = {}
+                        PREVIEW = 20
+                        if len(full_items) > PREVIEW:
+                            # Write the full BOM to a sidecar; inline a preview so a big
+                            # assembly doesn't flood the agent's context.
+                            wd = task.get("workdir", "."); os.makedirs(wd, exist_ok=True)
+                            full_path = os.path.join(wd, "bom_full.json")
+                            try:
+                                with open(full_path, "w", encoding="utf-8") as f:
+                                    f.write(__import__("json").dumps(full_items, indent=2, ensure_ascii=False))
+                                artifacts["full_bom"] = full_path
+                            except Exception:
+                                pass
+                            res["bom_preview"] = full_items[:PREVIEW]
+                            res["bom_preview_note"] = f"showing top {PREVIEW} of {len(full_items)} parts; full list in artifacts.full_bom"
+                        else:
+                            res["bom"] = full_items
+                        return C.write(args.out, C.result("ok", "0.1", cap, results=res,
+                            artifacts=artifacts,
+                            assumptions=["No SolidWorks/geometry kernel; BOM derived from STEP "
+                                         "PRODUCT names and NAUO instance counts."],
+                            caveats=["NAME-LEVEL BOM (source: STEP text). Quantities are real (NAUO "
+                                     "instance counts) but there is NO volume, mass, material, or "
+                                     "standard-part classification — those need a geometry kernel "
+                                     "(cadquery) or the SolidWorks assembly. "
+                                     + (f"{bom['unresolved_instances']} instance(s) had unresolved "
+                                        f"names and are counted but not itemized."
+                                        if bom["unresolved_instances"] else "")]))
+            except Exception:
                 pass  # fall through to macro
         wd = task.get("workdir", "."); os.makedirs(wd, exist_ok=True)
         mpath = os.path.join(wd, "bom_export_macro.swp")

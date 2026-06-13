@@ -246,6 +246,65 @@ def extract_subassemblies(path):
     return [{"name": n["name"], "instances": count(n)} for n in nodes]
 
 
+def extract_bom(path):
+    """Name-level BOM from STEP text — no geometry kernel needed.
+
+    Quantity = how many times a part appears as a child in a
+    NEXT_ASSEMBLY_USAGE_OCCURRENCE (i.e. how many times it is placed into some
+    parent). A part that never appears as a child (the top assembly) gets qty 1.
+
+    Returns a dict:
+      {
+        "source": "STEP-text",
+        "geometry": False,            # honest: no volume/mass/material
+        "confidence": "medium",
+        "total_instances": <int>,
+        "unique_parts": <int>,
+        "unresolved_instances": <int>,  # NAUO children whose PRODUCT name we
+                                        # couldn't resolve (counted, not faked)
+        "items": [{"name", "qty"}, ...] # sorted by qty desc
+      }
+
+    This is a NAME-level BOM only: no volume, mass, or material. Those require a
+    geometry kernel (cadquery) or SolidWorks and are surfaced by the geometry /
+    macro paths instead. Callers must present this as name-level.
+    """
+    text = _read(path)
+    pd2name, nauo = _build_graph(text)
+
+    qty = {}
+    unresolved = 0
+    children = set()
+    for parent, child in nauo:
+        children.add(child)
+        name = pd2name.get(child)
+        if name:
+            qty[name] = qty.get(name, 0) + 1
+        else:
+            unresolved += 1
+
+    # Root products (never a child) — present once each if we know their name.
+    all_pd = set(pd2name.keys())
+    roots = all_pd - children
+    for pd in roots:
+        name = pd2name.get(pd)
+        if name and name not in qty:
+            qty[name] = 1
+
+    items = sorted(({"name": n, "qty": q} for n, q in qty.items()),
+                   key=lambda it: (-it["qty"], it["name"]))
+    total = sum(it["qty"] for it in items) + unresolved
+    return {
+        "source": "STEP-text",
+        "geometry": False,
+        "confidence": "medium",
+        "total_instances": total,
+        "unique_parts": len(items),
+        "unresolved_instances": unresolved,
+        "items": items,
+    }
+
+
 def extract_edges(path):
     """Adjacency edges with an explicit provenance flag.
 

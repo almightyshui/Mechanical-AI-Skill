@@ -111,8 +111,8 @@ graph TD
 No license. Runs standalone. On a STEP file alone (no SolidWorks), it reads structure and runs approximate geometry checks; with SolidWorks it runs the production checks.
 
 **Assembly understanding**
-- **Review summary** — one upload → every metric on one screen
-- **BOM generation** + part count + standard-part identification
+- **Executive Review** — one command (`review_summary`) reads the STEP and returns an engineer-facing verdict: assembly scale, detected mechanisms, vendors, categories, a name-level BOM, and a risk score — you don't pre-run the other checks, it orchestrates them
+- **BOM generation** + part count + standard-part identification — works on a plain STEP with **no SolidWorks and no geometry kernel**: a real name-level BOM with true quantities (from assembly instance counts), honestly flagged as name-level (no volume/mass/material)
 - **Assembly Structure Summary** — components, mates, grouping (*what is there*)
 - **Assembly tree** — a clean structure tree to confirm the model parsed
 - **Mechanism Detection (Experimental)** — gear train, timing belt, chain drive, lead screw, robot arm, linear slide, pneumatic cylinder, rotary table
@@ -120,7 +120,7 @@ No license. Runs standalone. On a STEP file alone (no SolidWorks), it reads stru
 - **Assembly statistics** — top-level subassemblies and their instance counts
 - **Component category summary** — counts by kind (motors, sensors, cylinders, robots …) — statistics, not a procurement list
 - **Exploded structure graph** — a Mermaid diagram of the assembly tree (renders right in the README)
-- **Adjacency graph** — which parts touch / are neighbours (geometric, from a STEP); the *force-flow* and *constraint* graphs are Professional
+- **Adjacency graph** — which parts touch / are neighbours (geometric, from a STEP); without a geometry kernel it returns a clearly-labelled *hierarchy* graph (belongs-to, not touches) — never the two confused. The *force-flow* and *constraint* graphs are Professional
 
 **Engineering review & diagnostics**
 - **Interference detection** + **clearance check** (SolidWorks, or approximate from STEP)
@@ -189,7 +189,7 @@ bash mechanical-ai-skill/install.sh all     # Claude Code + Codex (+ Cursor in a
 ```
 Per agent: `install.sh claude | codex | cursor`. Manual paths in [`INSTALL.md`](INSTALL.md).
 
-**Zero config — works on a STEP file alone.** With no SolidWorks, BOM, assembly tree, summary, and **approximate** interference/clearance run directly from the STEP geometry (flagged approximate; production sign-off still uses the SolidWorks check). It still runs — open commands return a runnable macro (`deck_only`); gated commands say `enterprise_required`. Verify in 30 seconds:
+**Zero config — works on a STEP file alone, however you point at it.** Hand the skill a `.STEP`, a non-standard extension (e.g. a `.snapshot.1`), a `.zip`, or the unzipped folder — it resolves all of them and picks the right STEP. With no SolidWorks and no geometry kernel, BOM, part count, assembly tree, mechanisms, vendors, categories, the executive review, and **approximate** interference/clearance all run directly from the STEP (geometry-dependent checks are flagged approximate; production sign-off still uses the SolidWorks check). Every result carries a one-line `headline` and a `status` (`ok` / `deck_only` / `needs_input` / `enterprise_required` / `failed`) so an agent never misreads a graceful degradation as a failure — and never fabricates data the skill didn't compute. Verify in 30 seconds:
 ```bash
 git clone https://github.com/almightyshui/Mechanical-AI-Skill
 cd mechanical-ai-skill

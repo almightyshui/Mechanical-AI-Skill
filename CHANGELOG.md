@@ -3,6 +3,56 @@
 All notable changes to the Community Edition are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.5.2] - 2026-06-13
+
+### Changed
+- **`review_summary` is now an Executive Review, not an aggregator**: instead of
+  requiring the caller to pre-run every check and hand in `metrics`, it now reads
+  the STEP/zip/folder itself once and orchestrates the free checks — assembly
+  scale (unique parts, instances, subassemblies, depth), detected mechanisms,
+  vendors, categories, a name-level BOM (top rows inline, full list to
+  `artifacts.full_bom`), and a transparent risk score — returning one
+  engineer-facing verdict. One command in, a review out. Every figure is
+  computed; sub-checks that can't run are omitted, never faked. Design intent /
+  load paths / functional reasoning remain Professional.
+
+### Docs
+- README updated: executive review, no-SolidWorks name-level BOM, forgiving path
+  input (file / odd extension / zip / folder), and the unified status/headline
+  layer.
+
+## [0.5.1] - 2026-06-13
+
+### Added
+- **Forgiving task input (`normalize_task`)**: agents repeatedly wrote near-miss
+  task shapes — `task_type`/`command` instead of `capability`,
+  `input_file`/`file`/`path` at the top level (or `model.file`) instead of
+  `model.path` — which produced `failed` or a misleading `needs_input` and forced
+  several retry rounds. `load_task` now maps these aliases onto the canonical
+  schema, so all three entry points (understand / diagnostics / mechanism) accept
+  the common variants. The canonical schema is unchanged.
+- **Self-healing `needs_input`**: when a command can't auto-extract because no
+  `model.path` was given, the caveat now includes a copy-pasteable correct task
+  example, so an agent can fix it in one step instead of guessing or falling back
+  to manual component lists.
+
+## [0.5.0] - 2026-06-13
+
+### Added
+- **STEP text-level BOM (no geometry engine needed)**: `generate_bom` and
+  `part_count` now produce a real name-level BOM from STEP PRODUCT names and
+  NAUO instance counts when neither SolidWorks nor a geometry kernel is present
+  — instead of falling straight to `deck_only`. Quantities are real (counted
+  from how many times each part is placed via NEXT_ASSEMBLY_USAGE_OCCURRENCE).
+  New `step_context.extract_bom()` backs this. The degradation chain is now
+  SolidWorks → geometry kernel → STEP-text → macro, so a plain STEP upload
+  almost always returns an actual BOM. Honest about limits: results carry
+  `source: "STEP-text"`, `geometry: false`, and a caveat that there is no
+  volume / mass / material / standard-part classification (those need a geometry
+  kernel or the SolidWorks assembly). Unresolved-name instances are counted and
+  reported separately, never invented. Large BOMs inline a 20-row preview and
+  write the full list to `artifacts.full_bom` to keep agent context small.
+
 ## [0.4.2] - 2026-06-13
 
 ### Added
