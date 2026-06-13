@@ -109,29 +109,31 @@ def _render_review_md(step_name, summary, bom_items, caveats):
     if mech:
         L.append("## Detected mechanisms")
         L.append("")
-        prim = mech.get("primary") or mech.get("mechanism")
+        prim = mech.get("primary")
         if prim:
             L.append(f"- Primary: {prim}")
-        for m in (mech.get("mechanisms") or mech.get("detected") or []):
+        for m in (mech.get("detected") or mech.get("mechanisms") or []):
             if isinstance(m, dict):
-                L.append(f"- {m.get('type', m.get('name', '?'))}"
-                         + (f" (confidence {m['confidence']})" if m.get("confidence") else ""))
+                name = m.get("mechanism") or m.get("type") or m.get("name") or "?"
+                conf = m.get("confidence")
+                L.append(f"- {name}" + (f" (confidence {conf}%)" if conf is not None else ""))
             else:
                 L.append(f"- {m}")
         L.append("")
 
     ven = summary.get("vendors")
     if ven:
-        names = (ven.get("vendors") if isinstance(ven, dict) else ven) or []
+        rows = (ven.get("vendors") if isinstance(ven, dict) else ven) or []
         L.append("## Vendors")
         L.append("")
-        if names:
-            if isinstance(names, dict):
-                for k, v in names.items():
-                    L.append(f"- {k}: {v}")
-            else:
-                for v in names:
-                    L.append(f"- {v}")
+        if rows:
+            for r in rows:
+                if isinstance(r, dict):
+                    name = r.get("vendor") or r.get("name") or "?"
+                    cnt = r.get("count")
+                    L.append(f"- {name}" + (f" ({cnt} parts)" if cnt is not None else ""))
+                else:
+                    L.append(f"- {r}")
         else:
             L.append("- None detected from part names")
         L.append("")
@@ -142,15 +144,11 @@ def _render_review_md(step_name, summary, bom_items, caveats):
         L.append("## Categories")
         L.append("")
         if rows:
-            if isinstance(rows, dict):
-                for k, v in rows.items():
-                    L.append(f"- {k}: {v}")
-            elif isinstance(rows, list):
-                for r in rows:
-                    if isinstance(r, dict):
-                        L.append(f"- {r.get('category', r.get('name', '?'))}: {r.get('count', '?')}")
-                    else:
-                        L.append(f"- {r}")
+            for r in rows:
+                if isinstance(r, dict):
+                    L.append(f"- {r.get('category', r.get('name', '?'))}: {r.get('count', '?')}")
+                else:
+                    L.append(f"- {r}")
         else:
             L.append("- No categories classified")
         L.append("")
@@ -159,11 +157,17 @@ def _render_review_md(step_name, summary, bom_items, caveats):
     if risk:
         L.append("## Risk")
         L.append("")
-        score = risk.get("score") if isinstance(risk, dict) else risk
-        L.append(f"- Risk score: {score} / 100")
-        for c in (risk.get("contributors") or []) if isinstance(risk, dict) else []:
-            if isinstance(c, dict):
-                L.append(f"  - {c.get('factor', '?')}: {c.get('points', '?')}")
+        if isinstance(risk, dict):
+            score = risk.get("overall_score", risk.get("score"))
+        else:
+            score = risk
+        L.append(f"- Risk score: {score} / 100 (higher = lower risk; 100 = no flags raised)")
+        contribs = (risk.get("contributors") or []) if isinstance(risk, dict) else []
+        if contribs:
+            L.append("- Points deducted for:")
+            for c in contribs:
+                if isinstance(c, dict):
+                    L.append(f"  - {c.get('factor', '?')}: −{c.get('points', '?')}")
         L.append("")
 
     if bom_items:

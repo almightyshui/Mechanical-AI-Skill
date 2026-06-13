@@ -3,6 +3,24 @@
 All notable changes to the Community Edition are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.5.6] - 2026-06-13
+
+### Fixed
+- **Executive Review report rendering**: the Markdown report had four display
+  bugs surfaced on a real assembly — mechanisms showed `?` (wrong field; now reads
+  `mechanism`), vendors printed raw Python dicts (now `Vendor (N parts)`), the risk
+  score showed `None` (wrong field; now reads `overall_score`), and the score
+  direction was ambiguous (now labelled "higher = lower risk; 100 = no flags",
+  with deductions shown as `−points`).
+
+### Improved
+- **Category classification on real part names**: rules now recognize common
+  abbreviations and brand/model conventions (e.g. `Prox`→Sensors, `Bimba`→Pneumatic,
+  `Nook`/`BSJ`/`THK`→Linear Motion, `M-16iB`/`FANUC`/`axisN`→Robot, `SCHUNK`/`PSH`→
+  Grippers, `TIG`/`weld`→Welding), so a real assembly classifies instead of
+  returning "no categories." Vendor and category libraries will be externalized to
+  JSON next for easy extension.
+
 ## [0.5.5] - 2026-06-13
 
 ### Fixed
