@@ -141,6 +141,62 @@ def _read(path):
         return ""
 
 
+def detect_format(path):
+    """Identify the CAD format of a file so we can tell the user *what* it is and
+    *what to do*, instead of just failing.
+
+    Returns {format, supported, action, components?}. We never parse proprietary
+    formats (that would break Pure-Python / cross-platform); we recognize them by
+    extension + a light header sniff and route the user to export STEP.
+    """
+    import os as _os
+    p = str(path).lower()
+    name = _os.path.basename(str(path))
+    # supported: STEP (by content/extension/zip/folder) — defer to is_step
+    try:
+        if is_step(path):
+            return {"format": "STEP", "supported": True, "action": None}
+    except Exception:
+        pass
+
+    ext_map = {
+        ".sldasm": ("SolidWorks Assembly", "Export STEP: File → Save As → STEP (*.step)"),
+        ".sldprt": ("SolidWorks Part", "Export STEP: File → Save As → STEP (*.step)"),
+        ".igs": ("IGES", "Convert to STEP (most CAD tools: Save As → STEP)"),
+        ".iges": ("IGES", "Convert to STEP (most CAD tools: Save As → STEP)"),
+        ".x_t": ("Parasolid (text)", "Export STEP from your CAD tool"),
+        ".x_b": ("Parasolid (binary)", "Export STEP from your CAD tool"),
+        ".sat": ("ACIS SAT", "Export STEP from your CAD tool"),
+        ".ipt": ("Inventor Part", "Export STEP from Inventor"),
+        ".iam": ("Inventor Assembly", "Export STEP from Inventor"),
+        ".catpart": ("CATIA Part", "Export STEP from CATIA"),
+        ".catproduct": ("CATIA Assembly", "Export STEP from CATIA"),
+        ".prt": ("NX / Creo Part", "Export STEP from your CAD tool"),
+        ".asm": ("Creo Assembly", "Export STEP from Creo"),
+        ".3dxml": ("3DXML", "Export STEP instead"),
+        ".jt": ("JT", "Export STEP instead"),
+        ".stl": ("STL (mesh)", "STL is mesh-only (no assembly/part structure); export STEP"),
+        ".obj": ("OBJ (mesh)", "OBJ is mesh-only; export STEP"),
+    }
+    for ext, (fmt, action) in ext_map.items():
+        if p.endswith(ext):
+            out = {"format": fmt, "supported": False, "action": action}
+            # SolidWorks assemblies embed referenced part names — count them so the
+            # user sees the model isn't empty, just in the wrong format.
+            if ext == ".sldasm":
+                try:
+                    with open(path, "rb") as f:
+                        blob = f.read()
+                    refs = len(re.findall(rb"\.SLDPRT", blob, re.IGNORECASE))
+                    if refs:
+                        out["referenced_parts"] = refs
+                except Exception:
+                    pass
+            return out
+    return {"format": "Unknown", "supported": False,
+            "action": "Provide a STEP file (.step/.stp), or export STEP from your CAD tool"}
+
+
 def is_step(path):
     """True if this is a STEP file (by CONTENT, not just suffix) OR a .zip that
     contains one.
@@ -179,6 +235,49 @@ def extract_components(path):
     return out
 
 
+def _decode_step_string(s):
+    r"""Decode ISO 10303-21 string escapes so CJK part names survive.
+
+    STEP (esp. SolidWorks exports of Chinese models) encodes non-ASCII as:
+      \X2\<hex UTF-16BE...>\X0\    e.g. \X2\653e7f29\X0\  -> '放缩'
+      \X4\<hex UTF-32...>\X0\
+      \X\<2 hex>                    a single ISO-8859-1 byte
+    Without decoding, a whole class of Chinese assemblies shows up as garbage,
+    which also breaks vendor/category/custom matching. Decode in place; leave
+    plain ASCII names untouched.
+    """
+    if not s or "\\X" not in s:
+        return s
+
+    def _x2(m):
+        hexs = m.group(1)
+        try:
+            return bytes.fromhex(hexs).decode("utf-16-be")
+        except Exception:
+            return m.group(0)
+
+    def _x4(m):
+        hexs = m.group(1)
+        try:
+            return bytes.fromhex(hexs).decode("utf-32-be")
+        except Exception:
+            return m.group(0)
+
+    def _x1(m):
+        try:
+            return bytes([int(m.group(1), 16)]).decode("latin-1")
+        except Exception:
+            return m.group(0)
+
+    try:
+        s = re.sub(r"\\X2\\((?:[0-9A-Fa-f]{4})+)\\X0\\", _x2, s)
+        s = re.sub(r"\\X4\\((?:[0-9A-Fa-f]{8})+)\\X0\\", _x4, s)
+        s = re.sub(r"\\X\\([0-9A-Fa-f]{2})", _x1, s)
+    except Exception:
+        return s
+    return s
+
+
 def _build_graph(text):
     """Parse PRODUCT, PD->product map, and NAUO parent/child PD links.
 
@@ -196,7 +295,7 @@ def _build_graph(text):
     # entity# -> product name, via  #id = PRODUCT ( 'id','name', ... )
     ent_product = {}
     for m in re.finditer(r"#(\d+)\s*=\s*PRODUCT\s*\(\s*'([^']*)'\s*,\s*'([^']*)'", text):
-        ent_product[m.group(1)] = (m.group(3) or m.group(2) or "").strip()
+        ent_product[m.group(1)] = _decode_step_string((m.group(3) or m.group(2) or "").strip())
 
     # formation entity# -> product name.
     # PRODUCT_DEFINITION_FORMATION[_WITH_SPECIFIED_SOURCE] ( 'id','desc', #product, ... )

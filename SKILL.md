@@ -23,6 +23,8 @@ Every result JSON has a `headline` field. **Read it and report what it says. Do 
 
 **Path input is forgiving:** hand the model `path` a `.STEP` file, a non-standard extension (e.g. `.snapshot.1`), a `.zip`, OR the unzipped folder — the skill resolves all of them. You do not need to dig out the exact `.STEP` yourself.
 
+**Non-STEP formats are recognized, not silently failed:** if the file is a SolidWorks (`.sldasm`/`.sldprt`), IGES (`.igs`), Parasolid (`.x_t`), ACIS (`.sat`), Inventor/CATIA/Creo native, or mesh (`.stl`/`.obj`) file, the skill identifies the format and returns a `needs_input` with the format name and how to export STEP — report that to the user (what the file is + the export step), don't just say "failed." The skill analyzes STEP; other formats must be exported to STEP first (this keeps it pure-Python and cross-platform — no SolidWorks/CAD install needed).
+
 **`review_summary` writes its report for you — don't guess where.** It generates `review_summary.md` (human-readable) and `review_summary.json` (machine-readable) in a `mech_review/` folder **next to the STEP file**, and returns both exact paths in `artifacts.summary_md` / `artifacts.summary_json`. Report those exact paths to the user — never invent a temp path or claim a location you didn't get from `artifacts`.
 
 ## Editions

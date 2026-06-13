@@ -12,7 +12,9 @@
     ["Gears",           ["\\bgear\\b", "pinion"]],
     ["Couplings",       ["coupling"]],
     ["Valves",          ["\\bvalve\\b"]],
-    ["Fasteners",       ["\\bbolt\\b", "\\bnut\\b", "\\bwasher\\b", "\\bunf\\b", "\\bunc\\b", "\\bm[0-9]+x[0-9]"]]
+    ["Fasteners",       ["\\bbolt\\b", "\\bnut\\b", "\\bwasher\\b", "\\bunf\\b", "\\bunc\\b", "\\bm[0-9]+x[0-9]", "gb[_ /]*t?[_ ]*[0-9]", "螺丝", "螺栓", "螺钉", "螺母", "垫圈", "垫片", "self.?tapping", "\\bscrew\\b"]],
+    ["Extrusion / Frame",["[0-9]+x[0-9]+-[0-9]+mm", "铝型材", "型材", "\\bextrusion\\b", "profile.*[0-9]+x[0-9]+", "2020", "4040", "3030"]],
+    ["Electronics",     ["\\bpcb\\b", "capacitor", "resistor", "\\bled\\b", "\\bsmd\\b", "regulator", "电池", "编码器", "驱动器", "传感", "控制板"]]
   ],
   "custom_series": {
     "_comment": "If a part name starts with a numeric drawing-number prefix like '301065_P024' or '301066_p005', cluster by the leading number. Regex must capture the series id in group 1.",

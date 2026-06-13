@@ -257,6 +257,24 @@ def _executive_review(task, args):
     except Exception:
         CTX = None
     if CTX is None or not CTX.is_step(path):
+        # Format Intelligence: tell the user what the file IS and what to do,
+        # instead of a generic failure.
+        fmt = None
+        try:
+            fmt = CTX.detect_format(path) if CTX else None
+        except Exception:
+            fmt = None
+        if fmt and not fmt.get("supported"):
+            cav = [f"Input format: {fmt['format']} — not directly analyzable. "
+                   f"{fmt.get('action', 'Export STEP and try again.')}"]
+            if fmt.get("referenced_parts"):
+                cav.append(f"The assembly references {fmt['referenced_parts']} parts; "
+                           f"once exported to STEP they can be analyzed.")
+            return C.write(args.out, C.result("needs_input", "0.2", "review_summary",
+                needs_input=[f"a STEP export of this {fmt['format']} file"],
+                results={"input_format": fmt["format"], "supported": False,
+                         "suggested_action": fmt.get("action")},
+                caveats=cav))
         return C.write(args.out, C.result("needs_input", "0.2", "review_summary",
             needs_input=["a readable STEP/zip/folder at model.path"],
             caveats=["Could not resolve a STEP source from the given path."]))

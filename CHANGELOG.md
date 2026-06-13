@@ -3,6 +3,38 @@
 All notable changes to the Community Edition are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.7.3] - 2026-06-13
+
+### Added
+- **Format Intelligence** (`detect_format`): non-STEP inputs are now recognized
+  and explained instead of failing blindly. SolidWorks (`.sldasm`/`.sldprt`),
+  IGES (`.igs`), Parasolid (`.x_t`/`.x_b`), ACIS (`.sat`), Inventor / CATIA / Creo
+  native, JT, 3DXML, and mesh (`.stl`/`.obj`) files return the **format name,
+  "not directly analyzable," and the exact step to export STEP**. SolidWorks
+  assemblies also report how many parts they reference, so the user sees the model
+  isn't empty — just in the wrong format. This addresses the largest real-world
+  adoption gap surfaced in field testing (users often have SLDASM/IGS, not STEP),
+  without parsing proprietary formats — the skill stays pure-Python and
+  cross-platform; STEP remains the one supported input.
+
+## [0.7.2] - 2026-06-13
+
+### Fixed
+- **CJK part names from STEP string escapes**: SolidWorks exports of Chinese
+  models encode names as ISO 10303-21 escapes (`\X2\<UTF-16BE hex>\X0\`,
+  `\X4\…`, `\X\<hex>`). These were shown raw — a whole class of assemblies came
+  out as garbage like `\X2\653e7f29\X0\`, which also broke category/custom
+  matching. Names are now decoded (e.g. → "放缩螺丝", "垫片", "电机"), so the BOM is
+  readable and classification works on real names. Validated on two real Chinese
+  assemblies from field testing.
+
+### Improved
+- **Category coverage on real assemblies**: added GB national-standard fasteners
+  (`GB__T70…`), CJK fastener words (螺丝/螺栓/螺钉/螺母/垫圈/垫片), aluminium
+  extrusion / frame profiles (`20x20-400mm`, 2020/4040), and an Electronics
+  category (PCB / capacitor / resistor / LED / SMD / 电池 / 编码器 / 驱动器). On a
+  field test assembly this lifted classified instances from ~2 to ~320.
+
 ## [0.7.1] - 2026-06-13
 
 ### Docs

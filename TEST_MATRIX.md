@@ -28,6 +28,7 @@ another.
 | `.zip` of an assembly | PASS | auto-extracts, picks top-level STEP |
 | Unzipped folder | PASS | resolves the STEP inside |
 | Missing `model.path` | PASS | returns needs_input with a copy-paste example |
+| Non-STEP (SLDASM/IGS/X_T/SAT/STL…) | PASS | format identified + STEP-export guidance, not a blind failure |
 
 ## Degradation coverage (no SolidWorks / no geometry kernel)
 
