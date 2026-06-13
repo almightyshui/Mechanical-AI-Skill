@@ -23,6 +23,8 @@ Every result JSON has a `headline` field. **Read it and report what it says. Do 
 
 **Path input is forgiving:** hand the model `path` a `.STEP` file, a non-standard extension (e.g. `.snapshot.1`), a `.zip`, OR the unzipped folder — the skill resolves all of them. You do not need to dig out the exact `.STEP` yourself.
 
+**`review_summary` writes its report for you — don't guess where.** It generates `review_summary.md` (human-readable) and `review_summary.json` (machine-readable) in a `mech_review/` folder **next to the STEP file**, and returns both exact paths in `artifacts.summary_md` / `artifacts.summary_json`. Report those exact paths to the user — never invent a temp path or claim a location you didn't get from `artifacts`.
+
 ## Editions
 
 This is the **open Community Edition**, freemium. On its own — no license — it does CAD understanding, assembly diagnostics, basic reporting, **and real entry-level analysis**: single-load-case static (stress / deflection / safety factor), first-3-mode modal (frequencies / resonance), basic DFM, and a simple risk score. Upload a STEP and get real results, not a demo.

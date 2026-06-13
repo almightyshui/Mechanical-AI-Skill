@@ -3,6 +3,35 @@
 All notable changes to the Community Edition are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.5.4] - 2026-06-13
+
+### Added
+- **`review_summary` now writes a report you can find**: it generates
+  `review_summary.md` (human-readable: executive summary, mechanisms, vendors,
+  categories, risk, name-level BOM table, limits) and `review_summary.json`
+  (machine-readable, full BOM) into a **`mech_review/` folder next to the STEP
+  file** — a predictable location, not a temp dir the agent picks. Both exact
+  paths are returned in `artifacts.summary_md` / `artifacts.summary_json`.
+
+### Docs
+- SKILL.md tells the agent to report the exact `artifacts` paths for the review
+  and never to invent or guess an output location.
+
+## [0.5.3] - 2026-06-13
+
+### Fixed
+- **BOM/structure name resolution on real-world STEP (huge unresolved drop)**:
+  the PRODUCT_DEFINITION → FORMATION → PRODUCT name chain failed on common CAD
+  exports because the referenced `#id` is not the last argument (e.g.
+  `PRODUCT_DEFINITION_FORMATION_WITH_SPECIFIED_SOURCE('任何','',#product,.NOT_KNOWN.)`
+  and `PRODUCT_DEFINITION('未知','',#formation,#context)`). The old regexes
+  required the ref to sit right before the closing paren, so every part resolved
+  to "unresolved" — a BOM that counted parts but couldn't name them. The chain
+  now takes the first `#ref` in the parameter list per the STEP entity layout,
+  resolving real (incl. CJK) part names. On the validating fixture, unresolved
+  instances drop from all-of-them to zero. Improves BOM, vendor, category, and
+  mechanism detection (all depend on resolved PRODUCT names).
+
 ## [0.5.2] - 2026-06-13
 
 ### Changed

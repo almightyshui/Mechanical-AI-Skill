@@ -184,29 +184,45 @@ def _build_graph(text):
 
     Returns (id2name, nauo_edges) where nauo_edges is [(parent_pd, child_pd)] and
     id2name maps a PRODUCT_DEFINITION id to a product name.
+
+    Real-world STEP (e.g. Chinese CAD exports) spaces entities out and does NOT
+    put the referenced #id right before the closing paren, e.g.:
+        #N = PRODUCT_DEFINITION_FORMATION_WITH_SPECIFIED_SOURCE ( '任何','',#P,.NOT_KNOWN.) ;
+        #M = PRODUCT_DEFINITION ( '未知','',#F,#CTX ) ;
+    So we resolve the chain by taking the FIRST #ref in the parameter list
+    (which is the formation for a PD, and the product for a PDF) rather than
+    requiring the ref to be the last argument.
     """
-    # entity id -> product name, via #id=PRODUCT('id','name',...)
-    ent_product = {}  # entity#  -> product name
+    # entity# -> product name, via  #id = PRODUCT ( 'id','name', ... )
+    ent_product = {}
     for m in re.finditer(r"#(\d+)\s*=\s*PRODUCT\s*\(\s*'([^']*)'\s*,\s*'([^']*)'", text):
         ent_product[m.group(1)] = (m.group(3) or m.group(2) or "").strip()
 
-    # PRODUCT_DEFINITION_FORMATION[_WITH_SPECIFIED_SOURCE]( ... , #productEnt )
-    pdf_to_product = {}  # formation entity# -> product name
-    for m in re.finditer(r"#(\d+)\s*=\s*PRODUCT_DEFINITION_FORMATION(?:_WITH_SPECIFIED_SOURCE)?\s*\([^)]*#(\d+)\s*\)", text):
+    # formation entity# -> product name.
+    # PRODUCT_DEFINITION_FORMATION[_WITH_SPECIFIED_SOURCE] ( 'id','desc', #product, ... )
+    # Take the first #ref after the two quoted args = the product entity.
+    pdf_to_product = {}
+    for m in re.finditer(
+            r"#(\d+)\s*=\s*PRODUCT_DEFINITION_FORMATION(?:_WITH_SPECIFIED_SOURCE)?\s*"
+            r"\(\s*'[^']*'\s*,\s*'[^']*'\s*,\s*#(\d+)", text):
         prod = ent_product.get(m.group(2))
         if prod:
             pdf_to_product[m.group(1)] = prod
 
-    # PRODUCT_DEFINITION( ... , #formationEnt , ... ) -> product name
-    pd_to_product = {}  # product_definition entity# -> product name
-    for m in re.finditer(r"#(\d+)\s*=\s*PRODUCT_DEFINITION\s*\([^)]*?#(\d+)", text):
+    # product_definition entity# -> product name.
+    # PRODUCT_DEFINITION ( 'id','desc', #formation, #context ) — first #ref = formation.
+    pd_to_product = {}
+    for m in re.finditer(
+            r"#(\d+)\s*=\s*PRODUCT_DEFINITION\s*\(\s*'[^']*'\s*,\s*'[^']*'\s*,\s*#(\d+)", text):
         prod = pdf_to_product.get(m.group(2))
         if prod:
             pd_to_product[m.group(1)] = prod
 
-    # NEXT_ASSEMBLY_USAGE_OCCURRENCE(..., #parentPD, #childPD, ...)
+    # NEXT_ASSEMBLY_USAGE_OCCURRENCE ( 'id',' ',' ', #parentPD, #childPD, ... )
     nauo_edges = []
-    for m in re.finditer(r"NEXT_ASSEMBLY_USAGE_OCCURRENCE\s*\(\s*'[^']*'\s*,\s*'[^']*'\s*,\s*'[^']*'\s*,\s*#(\d+)\s*,\s*#(\d+)", text):
+    for m in re.finditer(
+            r"NEXT_ASSEMBLY_USAGE_OCCURRENCE\s*\(\s*'[^']*'\s*,\s*'[^']*'\s*,\s*'[^']*'\s*,\s*"
+            r"#(\d+)\s*,\s*#(\d+)", text):
         nauo_edges.append((m.group(1), m.group(2)))
     return pd_to_product, nauo_edges
 
