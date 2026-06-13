@@ -1,0 +1,60 @@
+{
+  "_comment": "Risk / review rules for the Findings Engine. Each rule fires when a signal crosses a threshold and produces a Finding: fact + evidence + severity + points deducted from a 100 baseline. Community-extensible via this JSON. The 'recommendation' for each finding is intentionally NOT here — recommendations are a Professional capability; Community states the fact and its impact, Pro says what to do about it.",
+  "rules": [
+    {
+      "id": "high_part_variety",
+      "signal": "unique_parts",
+      "op": ">=",
+      "threshold": 100,
+      "points": 12,
+      "severity": "medium",
+      "finding": "High part variety",
+      "impact": "Higher inventory, sourcing, and assembly complexity; more unique items to manage.",
+      "evidence_template": "{unique_parts} unique parts across {instances} instances"
+    },
+    {
+      "id": "high_custom_ratio",
+      "signal": "custom_pct",
+      "op": ">=",
+      "threshold": 60,
+      "points": 10,
+      "severity": "medium",
+      "finding": "High custom-part ratio",
+      "impact": "Manufacturing cost and lead time driven by in-house machined parts rather than off-the-shelf items.",
+      "evidence_template": "{custom_pct}% of classified instances are custom (in-house) parts"
+    },
+    {
+      "id": "deep_assembly",
+      "signal": "assembly_depth",
+      "op": ">=",
+      "threshold": 4,
+      "points": 6,
+      "severity": "low",
+      "finding": "Deep assembly structure",
+      "impact": "Deeper nesting can complicate assembly sequencing and rework.",
+      "evidence_template": "assembly depth {assembly_depth} levels"
+    },
+    {
+      "id": "high_instance_count",
+      "signal": "instances",
+      "op": ">=",
+      "threshold": 300,
+      "points": 8,
+      "severity": "medium",
+      "finding": "High instance count",
+      "impact": "More physical parts to procure, handle, and assemble.",
+      "evidence_template": "{instances} total part instances"
+    },
+    {
+      "id": "single_source_dependency",
+      "signal": "max_vendor_share",
+      "op": ">=",
+      "threshold": 50,
+      "points": 8,
+      "severity": "medium",
+      "finding": "Vendor concentration / single-source dependency",
+      "impact": "Supply-chain risk if one vendor supplies a large share of identified commercial parts.",
+      "evidence_template": "top vendor {top_vendor} covers {max_vendor_share}% of vendor-matched parts"
+    }
+  ]
+}

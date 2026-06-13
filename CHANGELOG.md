@@ -3,6 +3,22 @@
 All notable changes to the Community Edition are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.7.0] - 2026-06-13
+
+### Added
+- **Findings Engine (rule-driven, what/why only)**: a new `findings` capability
+  and `data/risk_rules.json` turn the risk roll-up into explicit, transparent
+  findings — each with a **fact, evidence, impact, and severity**, plus the points
+  it deducts from a 100 baseline. Rules live in JSON (threshold + signal +
+  severity), so they're explainable and community-extensible. The Executive Review
+  now includes a **Findings** section (e.g. "High part variety — 142 unique parts
+  across 357 instances — Medium"; "High custom-part ratio — 78% — Medium").
+- **Clean Community/Professional boundary**: findings state the fact and its
+  impact (Community, the *what/why*); the **recommendation** — what to change — is
+  a Professional capability and is shown as `(Professional)` in the free report.
+  This is the monetization seam for the rest of the roadmap (DFA/DFM reviews,
+  cost/procurement/maintenance agents): Community explains, Professional advises.
+
 ## [0.6.1] - 2026-06-13
 
 ### Added

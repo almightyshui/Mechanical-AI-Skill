@@ -197,6 +197,24 @@ def _render_review_md(step_name, summary, bom_items, caveats):
                     L.append(f"  - {c.get('factor', '?')}: −{c.get('points', '?')}")
         L.append("")
 
+    fnd = summary.get("findings")
+    if fnd and fnd.get("findings"):
+        L.append("## Findings")
+        L.append("")
+        for i, f in enumerate(fnd["findings"], 1):
+            sev = (f.get("severity") or "").capitalize()
+            L.append(f"### {i}. {f.get('finding', '?')} ({sev})")
+            L.append("")
+            if f.get("evidence"):
+                L.append(f"- Evidence: {f['evidence']}")
+            if f.get("impact"):
+                L.append(f"- Impact: {f['impact']}")
+            L.append(f"- Recommendation: *(Professional)*")
+            L.append("")
+        L.append("*Findings state fact, evidence, and impact. Specific recommendations — "
+                 "what to change — are a Professional capability.*")
+        L.append("")
+
     if bom_items:
         L.append("## BOM (name-level)")
         L.append("")
@@ -333,6 +351,25 @@ def _executive_review(task, args):
             "vendor_matched_parts": vendor_parts,
             "top_vendors": [v.get("vendor") for v in vrows[:5]],
         }
+
+    # --- Findings Engine: rule-driven facts (Community). Recommendations are Pro. ---
+    mix = summary.get("manufacturing_mix") or {}
+    vc = summary.get("vendor_concentration") or {}
+    vrows2 = ven["results"].get("vendors", []) if ven.get("status") == "ok" else []
+    top_vendor = vrows2[0].get("vendor") if vrows2 else None
+    vendor_parts2 = sum(v.get("count", 0) for v in vrows2)
+    max_share = round(100 * vrows2[0].get("count", 0) / vendor_parts2) if vendor_parts2 else 0
+    fsignals = {
+        "unique_parts": uniq,
+        "instances": inst,
+        "assembly_depth": depth,
+        "custom_pct": mix.get("custom_pct", 0),
+        "max_vendor_share": max_share,
+        "top_vendor": top_vendor,
+    }
+    fres = free_fea.DISPATCH["findings"]({"signals": fsignals})
+    if fres.get("status") == "ok":
+        summary["findings"] = fres["results"]
 
     # Output goes next to the STEP, in a predictable folder, so the user (and the
     # agent) can always find it — instead of a temp dir the agent picks and then

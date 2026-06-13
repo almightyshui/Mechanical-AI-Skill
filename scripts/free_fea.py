@@ -605,6 +605,87 @@ def vendor_summary(inp):
                 "alternate-part and supply-chain analysis is Professional."}}
 
 
+_RISK_RULES_BUILTIN = [
+    {"id": "high_part_variety", "signal": "unique_parts", "op": ">=", "threshold": 100,
+     "points": 12, "severity": "medium", "finding": "High part variety",
+     "impact": "Higher inventory, sourcing, and assembly complexity.",
+     "evidence_template": "{unique_parts} unique parts across {instances} instances"},
+]
+
+
+def _risk_rules():
+    j = _load_rules_json("risk_rules.json")
+    if j and isinstance(j.get("rules"), list):
+        return j["rules"]
+    return _RISK_RULES_BUILTIN
+
+
+def _cmp(val, op, thr):
+    if val is None:
+        return False
+    try:
+        if op == ">=": return val >= thr
+        if op == ">":  return val > thr
+        if op == "<=": return val <= thr
+        if op == "<":  return val < thr
+        if op == "==": return val == thr
+    except TypeError:
+        return False
+    return False
+
+
+def findings_engine(inp):
+    """Rule-driven Findings: fact + evidence + severity + score, from signals.
+
+    Community produces the FACT layer only (finding / evidence / impact /
+    severity) — it states *what* is notable and *why it matters*, never *what to
+    do*. The 'recommendation' field is intentionally a Professional placeholder
+    here; the Pro engine fills it. This keeps the what/why (free) vs how-to-fix
+    (paid) boundary clean.
+
+    inputs.signals: {unique_parts, instances, assembly_depth, custom_pct,
+                     max_vendor_share, top_vendor, ...}
+    """
+    s = inp.get("signals")
+    if s is None:
+        return {"status": "needs_input", "needs": ["inputs.signals"],
+                "note": "Provide signals (unique_parts, instances, assembly_depth, "
+                        "custom_pct, max_vendor_share, ...). Findings are rule-driven."}
+    findings = []
+    score = 100
+    for rule in _risk_rules():
+        val = s.get(rule.get("signal"))
+        if not _cmp(val, rule.get("op", ">="), rule.get("threshold")):
+            continue
+        pts = rule.get("points", 0)
+        score -= pts
+        try:
+            evidence = rule.get("evidence_template", "").format(**s)
+        except (KeyError, IndexError):
+            evidence = rule.get("evidence_template", "")
+        findings.append({
+            "id": rule.get("id"),
+            "finding": rule.get("finding", rule.get("id")),
+            "evidence": evidence,
+            "impact": rule.get("impact", ""),
+            "severity": rule.get("severity", "low"),
+            "points": pts,
+            # Community: fact layer only. Recommendation is a Professional capability.
+            "recommendation": None,
+            "recommendation_tier": "professional",
+        })
+    score = max(0, min(100, score))
+    findings.sort(key=lambda f: -f["points"])
+    return {"status": "ok", "results": {
+        "risk_score": score,
+        "finding_count": len(findings),
+        "findings": findings,
+        "note": "Findings state the fact, evidence, and impact (Community). "
+                "Recommendations — what to change — are Professional. "
+                "All findings are rule-driven and transparent; none invented."}}
+
+
+DISPATCH.update({"findings": findings_engine})
 DISPATCH.update({"vendor_summary": vendor_summary})
 
 
