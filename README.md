@@ -55,56 +55,60 @@ Mechanical assemblies are hard for AI agents to reason about. A large STEP assem
 
 ## Example — one STEP in, a full review out
 
-**Input**
+**Input:** a real 39 MB SolidWorks-exported STEP of a dual-station robotic welding cell. No SolidWorks, no geometry kernel — just the Community Edition reading the STEP. **Every figure is the actual output; nothing is invented.**
+
+**Output** *(`review_summary`, written to `mech_review/review_summary.md` next to the STEP)*
 ```
-gearbox.step
+EXECUTIVE SUMMARY
+  142 unique parts · 357 instances · assembly depth 4
+
+COMPLEXITY
+  High — 357 instances, 142 unique parts, depth 4, 2 mechanism subsystems
+
+MANUFACTURING MIX
+  Custom (in-house) 78%  ·  Commercial / classified 22%
+
+MECHANISMS
+  Robot Arm (95%) · Pneumatic Cylinder (76%)
+
+VENDORS
+  FANUC (7) · Nook (4) · SCHUNK (3) · Bimba (3) · Banner (1) · Lincoln Electric (1)
+
+CATEGORIES
+  Robot/Arm 7 · Grippers 5 · Linear Motion 4 · Pneumatic 3 · Sensors 1 · Welding 1
+  Custom Machined: 301065 (44) · 301066 (19) · 307070 (6) · 301060 (5) · 330001 (5)
+
+RISK
+  88 / 100 (higher = lower risk)
+
+FINDINGS
+  1. High part variety (Medium)
+       Evidence: 142 unique parts across 357 instances
+       Impact:   Higher inventory, sourcing, and assembly complexity
+       Recommendation: (Professional)
+  2. High custom-part ratio (Medium)
+       Evidence: 78% of classified instances are custom (in-house)
+       Impact:   Manufacturing cost and lead time driven by in-house parts
+       Recommendation: (Professional)
+  3. High instance count (Medium) · 357 instances · Recommendation: (Professional)
+  4. Deep assembly structure (Low) · depth 4 · Recommendation: (Professional)
 ```
 
-**Output** *(generated automatically from a single STEP assembly)*
-```
-ASSEMBLY SUMMARY
-  27 Parts · 4 Fasteners · 1 Gear Train
+A plain STEP viewer shows you the geometry. None of them tell you, from the file alone, that this is a **dual-station FANUC M-16iB welding cell, 78% in-house parts, six vendors, high complexity, with four findings worth a closer look**. That's the difference between *viewing* a model and *understanding* an assembly.
 
-DIAGNOSTICS
-  2 Interferences · 2 DFM Risks
-
-SIMULATION
-  Max Stress: 73 MPa · Safety Factor: 5.67
-
-ENGINEERING REVIEW
-  Risk Score: 71 / 100
-  Main contributors:
-    • Thin-wall geometry
-    • Tool accessibility
-    • Assembly complexity
-```
-
-![review summary](assets/review_summary.png)
-
-Full write-ups: **[Two-stage Gear Reducer Review](docs/CASE_STUDY.md)** · **[Robotic Welding Cell — real 39 MB STEP](docs/CASE_STUDY_welding_cell.md)** (142 parts, dual-station FANUC M-16iB cell, vendors + mechanism detected from a STEP alone).
+Full write-up: **[Robotic Welding Cell](examples/robot_welding_cell/review.md)** — real 39 MB STEP, every number verbatim.
 
 It can also emit the structure as a diagram that renders right here on GitHub:
 
 ```mermaid
 graph TD
-  n1["Gearbox"] --> n2["Housing"]
-  n1["Gearbox"] --> n3["Input Shaft"]
-  n3["Input Shaft"] --> n4["Bearing"]
-  n3["Input Shaft"] --> n5["Gear"]
-  n1["Gearbox"] --> n6["Output Shaft"]
-  n6["Output Shaft"] --> n7["Bearing"]
-  n6["Output Shaft"] --> n8["Gear"]
+  n1["Welding Cell"] --> n2["Station 1"]
+  n1["Welding Cell"] --> n3["Station 2"]
+  n2["Station 1"] --> n4["M-16iB Robot"]
+  n2["Station 1"] --> n5["Pneumatic Fixtures"]
+  n3["Station 2"] --> n6["M-16iB Robot"]
+  n3["Station 2"] --> n7["Pneumatic Fixtures"]
 ```
-
-<details>
-<summary>More screenshots</summary>
-
-| Interference check | Rule-based DFM | Static + safety factor |
-|---|---|---|
-| ![interference](assets/demo1_interference.png) | ![dfm](assets/demo2_dfm.png) | ![static](assets/demo3_static.png) |
-| clashing parts + overlap volume | deep holes / thin walls / sharp corners | stress, deflection, SF, PASS/FAIL |
-
-</details>
 
 ## What the Community Edition already does
 

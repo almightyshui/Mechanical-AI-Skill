@@ -3,6 +3,24 @@
 All notable changes to the Community Edition are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.7.1] - 2026-06-13
+
+### Docs
+- **Case study asset**: `examples/robot_welding_cell/review.md` captures the real
+  39 MB welding-cell review verbatim (142 parts, 78% custom, 6 vendors, complexity
+  High, 4 findings) — the reference example for README, GitHub, and write-ups.
+  `examples/README_CASE_STUDIES.md` explains the case-study layout and how to add
+  one.
+- **README rewritten around the real output**: the Example section now shows the
+  actual welding-cell review (executive summary → complexity → manufacturing mix →
+  mechanisms → vendors → categories → risk → findings) instead of a synthetic
+  gearbox with simulation numbers, matching the product's honest, no-FEA position.
+- **`TEST_MATRIX.md`**: regression matrix across assembly types, input formats, and
+  degradation paths, with a per-release log — so a rule change that helps one
+  assembly can't silently break another.
+- Removed two outdated/synthetic case-study docs that implied simulation the
+  Community Edition doesn't do.
+
 ## [0.7.0] - 2026-06-13
 
 ### Added
