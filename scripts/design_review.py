@@ -32,7 +32,15 @@ def main():
                            extra_caveats=[f"Free tier limit: {reason}."]))
         return C.write(args.out, CB.delegate(C, task, "review", cap, fn_name=cap))
 
-    # FREE: risk_score (multi-factor) or review_summary (aggregation)
+    # review_summary is the Executive Review — it orchestrates the free checks
+    # itself from the STEP (see sw_mechanism._executive_review). Delegate to it so
+    # there is ONE behaviour no matter which script an agent invokes, instead of
+    # the old metrics-aggregator that required pre-computed inputs.
+    if cap == "review_summary":
+        import sw_mechanism
+        return sw_mechanism._executive_review(task, args)
+
+    # FREE: risk_score (multi-factor)
     fn = free_fea.DISPATCH.get(cap)
     r = fn(task.get("inputs", {}) or {})
     if r["status"] == "needs_input":

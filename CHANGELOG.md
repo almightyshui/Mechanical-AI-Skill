@@ -3,6 +3,19 @@
 All notable changes to the Community Edition are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.5.5] - 2026-06-13
+
+### Fixed
+- **`review_summary` had two entry points; now unified**: `design_review.py`
+  still routed `review_summary` to the old metrics-aggregator in `free_fea.py`
+  (which demands pre-computed `inputs.metrics`), while `sw_mechanism.py` had the
+  new self-orchestrating Executive Review. An agent that picked the former got a
+  misleading `needs_input: metrics` even though the real capability runs from the
+  STEP alone. `design_review.py` now delegates `review_summary` to the same
+  Executive Review, so there is one behaviour regardless of which script is
+  invoked. SKILL.md command map now names `sw_mechanism.py` as the script for
+  `review_summary`.
+
 ## [0.5.4] - 2026-06-13
 
 ### Added

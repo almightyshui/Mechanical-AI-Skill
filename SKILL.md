@@ -59,7 +59,7 @@ Every capability is one command: `--task task.json` → `--out result.json`. Res
 ```bash
 # Community (open) — work standalone
 python scripts/sw_understand.py  --task task.json --out result.json   # BOM / count / std parts / explain
-python scripts/sw_mechanism.py   --task task.json --out result.json   # mechanism type (experimental) · assembly tree
+python scripts/sw_mechanism.py   --task task.json --out result.json   # mechanism type (experimental) · assembly tree · vendor/category · adjacency · review_summary (Executive Review)
 python scripts/sw_diagnostics.py --task task.json --out result.json   # interference / mates / clearance
 python scripts/sw_export.py      --task task.json --out result.json   # export STEP
 python scripts/report_pdf.py     --results r1.json --out report.pdf   # basic PDF/HTML report
