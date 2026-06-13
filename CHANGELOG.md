@@ -3,6 +3,27 @@
 All notable changes to the Community Edition are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.4.2] - 2026-06-13
+
+### Added
+- **Unified status layer (`headline` + `tier` on every result)**: each result now
+  carries a one-line `headline` that states the outcome unambiguously —
+  `[SUCCESS]` / `[PARTIAL]` / `[NEEDS INPUT]` / `[NOT IN COMMUNITY]` / `[FAILED]`
+  — so an agent can't misread a successful or gracefully-degraded result as a
+  failure. This addresses the observed failure mode where an agent saw
+  `deck_only` or a summarized `ok` and reported "0 succeeded / needs SolidWorks",
+  then fabricated part names, vendors, and counts.
+- **SKILL.md "READ THIS FIRST" block**: explicit rules for reporting each status
+  (deck_only is NOT a failure; ok is a real result; never fabricate part
+  names/vendors/counts from filenames or preview images), plus a note that the
+  model path accepts a STEP file, a non-standard extension, a zip, or an
+  unzipped folder.
+
+### Changed
+- **`_read` tries multiple encodings** (utf-8-sig → utf-8 → gb18030, then lossy)
+  so CJK part names from Chinese CAD exports are read intact instead of dropped,
+  strengthening vendor/category matching. Never raises.
+
 ## [0.4.1] - 2026-06-13
 
 ### Fixed

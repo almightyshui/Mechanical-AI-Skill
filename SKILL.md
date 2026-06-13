@@ -9,6 +9,20 @@ A mechanical-engineering **CAD-review** skill for AI coding agents. It sits betw
 
 The agent turns a natural-language request into a JSON task; this skill runs it against the real tools and returns a structured result the agent reports back.
 
+## READ THIS FIRST — how to report results (do not skip)
+
+Every result JSON has a `headline` field. **Read it and report what it says. Do not re-interpret the `status` yourself, and never invent data the skill did not return.**
+
+- `status: "ok"` → **The command SUCCEEDED. Report the real numbers.** A summarized result (with `tier`/counts) is still a full success; the full data is in `artifacts.full_results` if a sidecar was written. `graph_type: "hierarchy_fallback"` is still a successful result — report it as a hierarchy/belongs-to graph, not as a failure.
+- `status: "deck_only"` → **PARTIAL, NOT a failure and NOT a missing feature.** It means no geometry engine (SolidWorks/cadquery) is installed on this machine, so the skill produced a runnable macro instead. The capability exists and works where a geometry engine is present. Do **not** report this as "the tool needs SolidWorks / is broken / is unsupported." Report it as: ran successfully, geometry engine absent, macro generated.
+- `status: "needs_input"` → the command ran fine but needs the inputs listed in `needs_input`. Provide them (usually just point at the STEP/zip/folder). Not a failure.
+- `status: "enterprise_required"` → a Professional capability. Community **correctly declined** rather than fabricating an answer. Report it as such.
+- `status: "failed"` → only THIS is an actual failure. See `caveats`.
+
+**Never fabricate.** Do not guess part names, vendors (e.g. "FANUC M-16iB"), counts, or materials from a filename, a preview image, or a website note. If the skill didn't return it, say it wasn't computed. Inventing engineering data is the single worst thing this skill can do.
+
+**Path input is forgiving:** hand the model `path` a `.STEP` file, a non-standard extension (e.g. `.snapshot.1`), a `.zip`, OR the unzipped folder — the skill resolves all of them. You do not need to dig out the exact `.STEP` yourself.
+
 ## Editions
 
 This is the **open Community Edition**, freemium. On its own — no license — it does CAD understanding, assembly diagnostics, basic reporting, **and real entry-level analysis**: single-load-case static (stress / deflection / safety factor), first-3-mode modal (frequencies / resonance), basic DFM, and a simple risk score. Upload a STEP and get real results, not a demo.

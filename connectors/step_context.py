@@ -122,6 +122,18 @@ def resolve_step_path(path):
 
 def _read(path):
     path = resolve_step_path(path)
+    # Real-world STEP from Chinese CAD tools may be UTF-8 (with/without BOM) or
+    # GB18030. Try in order so CJK part names survive intact instead of being
+    # dropped by errors="ignore" (which would weaken vendor/category matching).
+    for enc in ("utf-8-sig", "utf-8", "gb18030"):
+        try:
+            with open(path, "r", encoding=enc) as f:
+                return f.read()
+        except (UnicodeDecodeError, UnicodeError):
+            continue
+        except Exception:
+            return ""
+    # Last resort: read lossy rather than fail outright.
     try:
         with open(path, "r", encoding="utf-8", errors="ignore") as f:
             return f.read()

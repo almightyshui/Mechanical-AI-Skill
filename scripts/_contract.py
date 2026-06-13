@@ -15,11 +15,51 @@ def load_task(path):
         return json.load(f)
 
 
+def _headline(status, capability, results, needs_input, artifacts, upgrade):
+    """One unambiguous line so an agent can't misread the outcome.
+
+    The recurring failure mode: an agent sees `deck_only` or a summarized `ok`
+    and reports the command as "failed" or "not supported", then invents a
+    result. The headline states plainly what happened and what (if anything) the
+    user must do — no interpretation required.
+    """
+    if status == "ok":
+        bits = []
+        for k in ("node_count", "edge_count", "part_count", "count",
+                  "component_count", "subassembly_count"):
+            if isinstance(results, dict) and k in results:
+                bits.append(f"{results[k]} {k.replace('_', ' ')}")
+        detail = ("; ".join(bits)) if bits else "completed"
+        gt = results.get("graph_type") if isinstance(results, dict) else None
+        if gt == "hierarchy_fallback":
+            detail += " (hierarchy/belongs-to, not geometric contact)"
+        return f"[SUCCESS] {capability}: {detail}. This is a real Community result."
+    if status == "deck_only":
+        return (f"[PARTIAL] {capability}: no geometry engine (SolidWorks/cadquery) on this "
+                f"machine, so a runnable macro was generated instead. This is a graceful "
+                f"degradation, NOT a failure and NOT a missing feature — the capability "
+                f"exists and works where a geometry engine is present.")
+    if status == "needs_input":
+        miss = ", ".join(needs_input or []) or "additional data"
+        return (f"[NEEDS INPUT] {capability}: provide {miss}. The command ran correctly; it "
+                f"just needs this input. Not a failure.")
+    if status == "enterprise_required":
+        feat = (upgrade or {}).get("feature", capability)
+        return (f"[NOT IN COMMUNITY] {feat}: this is a Professional/Enterprise capability. "
+                f"Community correctly declined rather than fabricating an answer.")
+    if status == "failed":
+        return f"[FAILED] {capability}: the command could not run. See caveats for why."
+    return f"{capability}: {status}"
+
+
 def result(status, stage, capability, results=None, assumptions=None,
            caveats=None, needs_input=None, artifacts=None, run_command=None,
            upgrade=None):
     r = {
         "status": status,   # ok | needs_input | deck_only | failed | enterprise_required
+        "headline": _headline(status, capability, results or {}, needs_input,
+                              artifacts or {}, upgrade),
+        "tier": "community",
         "stage": stage,
         "capability": capability,
         "results": results or {},
