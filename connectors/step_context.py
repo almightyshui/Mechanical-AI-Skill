@@ -78,6 +78,9 @@ def resolve_step_path(path):
     """Normalize any input to a usable STEP path.
 
     - A STEP file (any extension, by content) -> returned as-is.
+    - A directory (e.g. an unzipped assembly folder) -> the best STEP inside is
+      returned. Agents and users often point at the extracted folder rather than
+      the exact .STEP inside it; this makes that just work.
     - A .zip assembly package -> extracted once (cached) and the best STEP
       inside is returned.
     - Anything we can't resolve -> original path returned unchanged, so callers
@@ -85,6 +88,16 @@ def resolve_step_path(path):
     """
     if not path:
         return path
+    # A directory: pick the best STEP within it (handles "pointed at the unzipped
+    # folder, not the .STEP file" — the most common path mistake).
+    try:
+        if os.path.isdir(path):
+            step = _pick_step_from_dir(path)
+            if step:
+                return step
+            return path
+    except Exception:
+        pass
     if _is_zip(path):
         key = os.path.abspath(str(path))
         cached = _ZIP_CACHE.get(key)
@@ -130,6 +143,12 @@ def is_step(path):
     p = str(path).lower()
     if p.endswith((".step", ".stp")):
         return True
+    # A directory or zip is a STEP source if we can resolve a STEP out of it.
+    try:
+        if os.path.isdir(path):
+            return _pick_step_from_dir(path) is not None
+    except Exception:
+        pass
     if _is_zip(path):
         resolved = resolve_step_path(path)
         return resolved != path and bool(resolved) and os.path.exists(str(resolved))

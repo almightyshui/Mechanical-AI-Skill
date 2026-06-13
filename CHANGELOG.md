@@ -3,6 +3,18 @@
 All notable changes to the Community Edition are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.4.1] - 2026-06-13
+
+### Fixed
+- **Accept a directory as the model path**: agents and users frequently point
+  at the unzipped assembly *folder* (e.g. `.../-7549.snapshot.1/`) rather than
+  the exact `.STEP` inside it. Previously that read as a non-STEP and every
+  command returned `needs_input`/`deck_only`, looking like "can't read the
+  file." `resolve_step_path()` and `is_step()` now treat a directory as a STEP
+  source — they pick the best STEP within it (largest = most likely the top
+  assembly), the same selection used for zips. Verified: all 7 STEP Auto Context
+  commands return `ok` when handed the folder path.
+
 ## [0.4.0] - 2026-06-13
 
 ### Changed
