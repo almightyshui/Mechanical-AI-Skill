@@ -1,6 +1,6 @@
 {
   "name": "mechanical-ai-skill",
-  "version": "0.3.3",
+  "version": "0.4.0",
   "description": "Mechanical engineering CAD-review skill (Community Edition) for AI agents: BOM, standard-part ID, assembly explanation, interference/clearance diagnostics, and reports. Advanced FEA/DFM/optimization are Professional Edition.",
   "author": {"name": "almightyshui"},
   "license": "MIT",

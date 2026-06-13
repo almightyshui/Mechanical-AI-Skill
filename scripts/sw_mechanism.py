@@ -16,6 +16,7 @@ Usage: python sw_mechanism.py --task task.json --out result.json
 """
 import os, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import json
 import _contract as C
 import core_bridge as CB
 import tier
@@ -23,6 +24,69 @@ import free_fea
 
 CAPS = {"mechanism_detect", "assembly_tree", "vendor_summary",
         "assembly_stats", "exploded_view", "category_summary", "adjacency_graph"}
+
+# Fields large enough to blow up an agent's context on a big assembly. We keep a
+# short preview inline and write the full value to a sidecar file. Counts/notes
+# always stay inline so the agent still gets the real answer.
+_BIG_FIELDS = ("tree_text", "mermaid", "neighbours", "most_connected")
+_PREVIEW_LINES = 12   # for newline-delimited text (tree_text / mermaid)
+_PREVIEW_ITEMS = 8    # for dict/list fields (neighbours / most_connected)
+
+
+def _sidecar_path(out_path, cap):
+    base = out_path or f"{cap}_result.json"
+    root = base[:-5] if base.endswith(".json") else base
+    return f"{root}.full.json"
+
+
+def _slim_results(results, cap, out_path, detail):
+    """Return (inline_results, wrote_path_or_None).
+
+    detail == 'full'  -> return everything as-is (no sidecar).
+    detail == 'summary' (default) -> truncate big fields, dump full to sidecar.
+    """
+    if detail == "full":
+        return results, None
+    has_big = any(k in results for k in _BIG_FIELDS)
+    if not has_big:
+        return results, None   # small command — nothing to slim
+
+    full_path = _sidecar_path(out_path, cap)
+    try:
+        with open(full_path, "w", encoding="utf-8") as f:
+            f.write(json.dumps(results, indent=2, ensure_ascii=False))
+        wrote = full_path
+    except Exception:
+        wrote = None
+
+    slim = {}
+    for k, v in results.items():
+        if k == "tree_text" and isinstance(v, str):
+            lines = v.split("\n")
+            slim["tree_preview"] = "\n".join(lines[:_PREVIEW_LINES])
+            if len(lines) > _PREVIEW_LINES:
+                slim["tree_preview"] += f"\n... ({len(lines)} lines total)"
+        elif k == "mermaid" and isinstance(v, str):
+            lines = v.split("\n")
+            slim["mermaid_preview"] = "\n".join(lines[:_PREVIEW_LINES])
+            if len(lines) > _PREVIEW_LINES:
+                slim["mermaid_preview"] += f"\n... ({len(lines)} lines total)"
+        elif k == "neighbours" and isinstance(v, dict):
+            items = list(v.items())[:_PREVIEW_ITEMS]
+            preview = {}
+            for a, b in items:
+                if isinstance(b, list) and len(b) > _PREVIEW_ITEMS:
+                    preview[a] = b[:_PREVIEW_ITEMS] + [f"...(+{len(b) - _PREVIEW_ITEMS} more)"]
+                else:
+                    preview[a] = b
+            slim["neighbours_preview"] = preview
+            if len(v) > _PREVIEW_ITEMS:
+                slim["neighbours_truncated"] = f"{len(v)} nodes total"
+        elif k == "most_connected" and isinstance(v, list):
+            slim["most_connected"] = v[:_PREVIEW_ITEMS]
+        else:
+            slim[k] = v   # counts, notes, graph_type — keep inline
+    return slim, wrote
 
 
 def main():
@@ -63,9 +127,10 @@ def main():
             elif cap == "assembly_stats" and not inputs.get("subassemblies") and not inputs.get("nodes"):
                 inputs["subassemblies"] = CTX.extract_subassemblies(path)
             elif cap == "adjacency_graph" and not inputs.get("edges"):
-                edges, names = CTX.extract_edges(path)
+                edges, names, _gtype = CTX.extract_edges(path)
                 if edges:
                     inputs["edges"] = edges
+                    inputs["_graph_type"] = _gtype  # geometric | hierarchy_fallback
                     if names and not inputs.get("names"):
                         inputs["names"] = names
         except Exception:
@@ -86,9 +151,28 @@ def main():
         caveat = "Structure visualization (Mermaid); 3D exploded / assembly-sequence is Professional."
     elif cap == "category_summary":
         caveat = "Component counts by category; procurement (sourcing/cost/alternates) is Professional."
+    elif cap == "adjacency_graph":
+        gtype = (task.get("inputs") or {}).get("_graph_type", "geometric")
+        if gtype == "hierarchy_fallback":
+            caveat = ("HIERARCHY graph (parent->child from the assembly tree), NOT a geometric "
+                      "adjacency graph. No geometry kernel was available, so this shows which parts "
+                      "BELONG together, not which parts TOUCH. True contact adjacency needs SolidWorks "
+                      "or a geometry kernel (cadquery).")
+        else:
+            caveat = ("Geometric adjacency only (who touches whom). Force-flow, constraint graph, "
+                      "and design intent are Professional.")
     else:
         caveat = "Assembly structure tree; assembly order/sequence/intent is Professional."
-    return C.write(args.out, C.result("ok", "0.2", cap, results=r["results"], caveats=[caveat]))
+    detail = (task.get("inputs") or {}).get("detail") or task.get("detail") or "summary"
+    slim, full_path = _slim_results(r["results"], cap, args.out, detail)
+    caveats = [caveat]
+    artifacts = {}
+    if full_path:
+        artifacts["full_results"] = full_path
+        caveats.append(f"Inline output is a summary; full result written to {full_path}. "
+                       f"Pass \"detail\":\"full\" to get everything inline.")
+    return C.write(args.out, C.result("ok", "0.2", cap, results=slim,
+                   caveats=caveats, artifacts=artifacts))
 
 
 if __name__ == "__main__":

@@ -149,7 +149,7 @@ def main():
                 pass  # fall through to macro
         wd = task.get("workdir", "."); os.makedirs(wd, exist_ok=True)
         mpath = os.path.join(wd, "bom_export_macro.swp")
-        open(mpath, "w").write(MACRO.format(path=task["model"]["path"]))
+        open(mpath, "w", encoding="utf-8").write(MACRO.format(path=task["model"]["path"]))
         return C.write(args.out, C.result(
             "deck_only", "0.1", cap, artifacts={"macro": mpath},
             run_command="In SolidWorks: Tools > Macro > Run > bom_export_macro.swp (exports component list to CSV)",

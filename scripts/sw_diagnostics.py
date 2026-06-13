@@ -167,7 +167,7 @@ def main():
         wd = task.get("workdir", ".")
         os.makedirs(wd, exist_ok=True)
         mpath = os.path.join(wd, "diagnostic_macro.swp")
-        open(mpath, "w").write(macro)
+        open(mpath, "w", encoding="utf-8").write(macro)
         return C.write(args.out, C.result(
             "deck_only", "1.0", cap,
             artifacts={"macro": mpath},

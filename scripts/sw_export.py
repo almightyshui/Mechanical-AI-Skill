@@ -35,7 +35,7 @@ def main():
 
     if not C.has_pywin32():
         mpath = os.path.join(wd, "export_step_macro.swp")
-        open(mpath, "w").write(MACRO.format(path=src, doctype=doctype, step=step))
+        open(mpath, "w", encoding="utf-8").write(MACRO.format(path=src, doctype=doctype, step=step))
         return C.write(args.out, C.result(
             "deck_only", "2.0", cap, artifacts={"macro": mpath, "step": step},
             run_command="In SolidWorks: Tools > Macro > Run > export_step_macro.swp",

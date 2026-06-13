@@ -216,25 +216,38 @@ def extract_subassemblies(path):
 
 
 def extract_edges(path):
-    """Adjacency edges. Prefer real geometric contact (if geometry kernel present);
-    else use assembly-relationship edges from NAUO (parent-child = connected)."""
+    """Adjacency edges with an explicit provenance flag.
+
+    Returns (edges, names, graph_type):
+      - graph_type == "geometric": real surface contact from the geometry kernel
+        ("who touches whom"). Only when cadquery/OCC is present and the assembly
+        isn't deferred for size.
+      - graph_type == "hierarchy_fallback": assembly parent->child links from
+        NAUO ("who belongs to whom"). This is NOT geometric contact; callers must
+        label it as such and never present it as a true adjacency graph.
+
+    The hierarchy fallback keeps a `pd_<id>` placeholder name when a NAUO node's
+    PRODUCT name can't be resolved, so real assemblies (where the PD->PRODUCT
+    chain is sparse) still yield edges instead of silently dropping all of them.
+    """
     path = resolve_step_path(path)
-    # try geometry first
+    # try real geometry first
     try:
         import step_geometry as SG
         if SG.available():
             adj = SG.adjacency(path)
             if not adj.get("too_large") and adj.get("edges"):
-                return [{"a": e["pair"][0], "b": e["pair"][1]} for e in adj["edges"]], \
-                       [f"solid_{s['index']}" for s in SG.read_structure(path)]
+                return ([{"a": e["pair"][0], "b": e["pair"][1]} for e in adj["edges"]],
+                        [f"solid_{s['index']}" for s in SG.read_structure(path)],
+                        "geometric")
     except Exception:
         pass
-    # fallback: NAUO assembly edges (names)
+    # fallback: NAUO assembly relationships (hierarchy, NOT geometric contact)
     text = _read(path)
     pd2name, nauo = _build_graph(text)
     edges = []
     for parent, child in nauo:
-        a, b = pd2name.get(parent), pd2name.get(child)
-        if a and b:
-            edges.append({"a": a, "b": b})
-    return edges, None
+        a = pd2name.get(parent) or f"pd_{parent}"
+        b = pd2name.get(child) or f"pd_{child}"
+        edges.append({"a": a, "b": b})
+    return edges, None, "hierarchy_fallback"

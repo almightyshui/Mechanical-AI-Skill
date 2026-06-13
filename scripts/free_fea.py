@@ -864,14 +864,21 @@ def adjacency_graph(inp):
 
     degree = {k: len(v) for k, v in neigh.items()}
     hubs = sorted(degree.items(), key=lambda kv: -kv[1])[:5]
+    gtype = inp.get("_graph_type", "geometric")
+    if gtype == "hierarchy_fallback":
+        note = ("HIERARCHY graph (assembly parent->child), NOT geometric contact. Shows which "
+                "parts BELONG together, not which TOUCH. Contact adjacency needs a geometry kernel.")
+    else:
+        note = ("Geometric adjacency only (who touches whom). Force-flow, constraint "
+                "graph, and design intent are Professional.")
     return {"status": "ok", "results": {
+        "graph_type": gtype,
         "node_count": len(neigh),
         "edge_count": len(seen),
         "neighbours": {k: sorted(v) for k, v in neigh.items()},
         "most_connected": [{"part": k, "neighbours": d} for k, d in hubs],
         "mermaid": mermaid,
-        "note": "Geometric adjacency only (who touches whom). Force-flow, constraint "
-                "graph, and design intent are Professional."}}
+        "note": note}}
 
 
 DISPATCH.update({"adjacency_graph": adjacency_graph})

@@ -3,6 +3,43 @@
 All notable changes to the Community Edition are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.4.0] - 2026-06-13
+
+### Changed
+- **Summary-by-default output (big token savings for agents)**: the
+  structure/graph commands (`assembly_tree`, `exploded_view`, `adjacency_graph`)
+  used to dump the entire tree / Mermaid / neighbour map inline — on a 400-part
+  assembly that was ~18k tokens across the set, most of it the same node list
+  drawn three ways. They now return a compact summary by default (counts +
+  graph_type + a short preview) and write the full result to a `.full.json`
+  sidecar referenced under `artifacts.full_results`. Same 8-command run drops
+  from ~18k to ~2.5k tokens (-86%). Pass `"detail":"full"` (in `inputs` or at
+  the task root) to get everything inline as before. Summary counts are
+  identical to the full result and truncation is labelled (e.g. "401 nodes
+  total") — the summary never alters or invents data. Small commands
+  (`assembly_stats`, `vendor_summary`, `category_summary`, `mechanism_detect`)
+  were already tiny and are unchanged.
+
+## [0.3.4] - 2026-06-13
+
+### Fixed
+- **UTF-8 everywhere (Windows CJK paths)**: task files, result files, and all
+  generated macros/reports are now read and written as explicit UTF-8. Before,
+  bare `open()` used the platform default (GBK on Chinese-locale Windows) and
+  raised on any task carrying a CJK path or part name (e.g.
+  `机器人自动焊接机.STEP`), which made callers misreport capabilities as
+  "missing" or "Pro-only" when in fact the command simply never ran. Result JSON
+  now uses `ensure_ascii=False` so CJK names stay readable instead of `\uXXXX`.
+- **`adjacency_graph` on real assemblies**: previously returned `needs_input`
+  (0 edges) on a large STEP even though the file carried hundreds of assembly
+  links, because unresolved PRODUCT_DEFINITION ids were silently dropped. The
+  NAUO fallback now keeps a `pd_<id>` placeholder so no edge is lost, and —
+  critically — the output is explicitly tagged `graph_type: "hierarchy_fallback"`
+  (parent→child "belongs-to", NOT geometric "touches") whenever no geometry
+  kernel is present. A true contact graph (`graph_type: "geometric"`) still
+  requires SolidWorks or cadquery. The hierarchy graph is never presented as a
+  geometric adjacency graph — consistent with the never-fabricate rule.
+
 ## [0.3.3] - 2026-06-13
 
 ### Fixed

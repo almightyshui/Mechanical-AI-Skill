@@ -9,7 +9,9 @@ import json, sys, os
 
 
 def load_task(path):
-    with open(path) as f:
+    # Explicit UTF-8: task files routinely carry CJK paths/names, and the
+    # platform default (GBK on Windows) raises UnicodeDecodeError on them.
+    with open(path, encoding="utf-8") as f:
         return json.load(f)
 
 
@@ -33,9 +35,11 @@ def result(status, stage, capability, results=None, assumptions=None,
 
 
 def write(out_path, res):
-    txt = json.dumps(res, indent=2)
+    # ensure_ascii=False keeps CJK part names readable instead of \uXXXX;
+    # explicit UTF-8 so the file is valid regardless of platform default.
+    txt = json.dumps(res, indent=2, ensure_ascii=False)
     if out_path:
-        with open(out_path, "w") as f:
+        with open(out_path, "w", encoding="utf-8") as f:
             f.write(txt)
     print(txt)
     return res

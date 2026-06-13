@@ -21,7 +21,7 @@ def load(paths):
     out = []
     for p in paths:
         try:
-            out.append((p, json.load(open(p))))
+            out.append((p, json.load(open(p, encoding="utf-8"))))
         except Exception as e:
             out.append((p, {"status": "failed", "caveats": [f"could not read {p}: {e}"]}))
     return out
@@ -180,12 +180,12 @@ def main():
             return
         except Exception as e:
             html_out = os.path.splitext(a.out)[0] + ".html"
-            open(html_out, "w").write(render_html(reports, a.title))
+            open(html_out, "w", encoding="utf-8").write(render_html(reports, a.title))
             print(json.dumps({"status": "ok", "report": html_out, "format": "html",
                               "note": f"reportlab unavailable ({e}); wrote HTML instead. "
                                       "pip install reportlab for PDF."}))
             return
-    open(a.out, "w").write(render_html(reports, a.title))
+    open(a.out, "w", encoding="utf-8").write(render_html(reports, a.title))
     print(json.dumps({"status": "ok", "report": a.out, "format": "html"}))
 
 
