@@ -3,6 +3,34 @@
 All notable changes to the Community Edition are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.3.3] - 2026-06-13
+
+### Fixed
+- **Zip assembly packages work directly**: capabilities now accept a `.zip`
+  (a common way CAD assemblies are shared, e.g. `part-7549.snapshot.1.zip`)
+  without the caller unzipping by hand. A new `resolve_step_path()` layer in
+  `step_context` detects a zip (by name or signature), extracts it once
+  (cached + path-traversal guarded), and picks the best STEP inside — largest
+  STEP wins, since that is almost always the top assembly rather than a single
+  part. `is_step()` recognizes such a zip, and the 7 STEP Auto Context commands
+  plus BOM (`generate_bom`/`part_count`) and interference/clearance diagnostics
+  resolve the zip transparently. Previously every command returned `needs_input`
+  on a zip, which read as "can't analyze this assembly." Verified end to end on
+  a multi-STEP zip: 7 commands return `ok` with real extracted structure.
+
+## [0.3.2] - 2026-06-13
+
+### Fixed
+- **STEP detection by content, not extension**: `is_step()` now sniffs the file
+  for ISO-10303 / PRODUCT / NAUO markers instead of trusting only a `.step`/`.stp`
+  suffix. CAD tools sometimes export a STEP under a non-standard name (e.g.
+  `foo.snapshot.1`); previously every capability returned `needs_input` on such a
+  file, which read as "can't open STEP." Now content wins: the 7 STEP Auto Context
+  commands (`assembly_tree`, `assembly_stats`, `mechanism_detect`, `vendor_summary`,
+  `category_summary`, `adjacency_graph`, `exploded_view`) plus BOM (`generate_bom` /
+  `part_count`) and interference/clearance diagnostics all recognize a STEP
+  regardless of its file extension. Verified end to end on a `.snapshot.1` file.
+
 ## [0.3.1] - 2026-06-12
 
 ### Fixed

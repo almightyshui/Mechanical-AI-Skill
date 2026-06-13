@@ -139,7 +139,15 @@ def main():
     # STEP geometry fallback: no SolidWorks, but a .step/.stp + cadquery available
     if not C.has_pywin32():
         path = task["model"]["path"]
-        is_step = str(path).lower().endswith((".step", ".stp"))
+        sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "connectors"))
+        try:
+            import step_context as SC
+            is_step = SC.is_step(path)
+            resolved = SC.resolve_step_path(path)
+            if resolved and resolved != path:
+                task["model"]["path"] = resolved  # zip -> extracted STEP
+        except Exception:
+            is_step = str(path).lower().endswith((".step", ".stp"))
         try:
             sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "connectors"))
             import step_geometry as G

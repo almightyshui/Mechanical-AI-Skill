@@ -10,9 +10,105 @@ This is what makes "upload a STEP -> get a review" true: capabilities call these
 extractors automatically instead of returning needs_input.
 """
 import re
+import os
+import zipfile
+import tempfile
+
+
+# Cache: original zip path -> resolved STEP path inside extracted temp dir.
+# A single zip is unpacked once and reused across all 7 capability calls.
+_ZIP_CACHE = {}
+
+
+def _looks_like_step_name(name):
+    return name.lower().endswith((".step", ".stp"))
+
+
+def _sniff_is_step_text(path):
+    """Content sniff for files without a .step/.stp name."""
+    try:
+        with open(path, "r", encoding="utf-8", errors="ignore") as f:
+            head = f.read(8192)
+    except Exception:
+        return False
+    if not head:
+        return False
+    up = head.upper()
+    if "ISO-10303" in up:
+        return True
+    return ("PRODUCT(" in up or "PRODUCT (" in up
+            or "NEXT_ASSEMBLY_USAGE_OCCURRENCE" in up)
+
+
+def _pick_step_from_dir(root):
+    """Choose the best STEP from an extracted tree.
+
+    Preference: real STEP files (by name OR content), largest first — the
+    biggest STEP is almost always the top assembly rather than a single part.
+    A zip can also carry SLDASM/SLDPRT (no text STEP); those are ignored here
+    since this layer is text-STEP only. Returns a path or None.
+    """
+    candidates = []  # (size, path)
+    for dirpath, _dirs, files in os.walk(root):
+        for fn in files:
+            fp = os.path.join(dirpath, fn)
+            try:
+                size = os.path.getsize(fp)
+            except Exception:
+                continue
+            if _looks_like_step_name(fn) or _sniff_is_step_text(fp):
+                candidates.append((size, fp))
+    if not candidates:
+        return None
+    candidates.sort(reverse=True)  # largest first = most likely the assembly
+    return candidates[0][1]
+
+
+def _is_zip(path):
+    p = str(path).lower()
+    if p.endswith(".zip"):
+        return True
+    try:
+        return zipfile.is_zipfile(path)
+    except Exception:
+        return False
+
+
+def resolve_step_path(path):
+    """Normalize any input to a usable STEP path.
+
+    - A STEP file (any extension, by content) -> returned as-is.
+    - A .zip assembly package -> extracted once (cached) and the best STEP
+      inside is returned.
+    - Anything we can't resolve -> original path returned unchanged, so callers
+      degrade exactly as before.
+    """
+    if not path:
+        return path
+    if _is_zip(path):
+        key = os.path.abspath(str(path))
+        cached = _ZIP_CACHE.get(key)
+        if cached and os.path.exists(cached):
+            return cached
+        try:
+            tmp = tempfile.mkdtemp(prefix="step_ctx_")
+            with zipfile.ZipFile(path) as zf:
+                # Guard against path traversal in zip member names.
+                safe = [n for n in zf.namelist()
+                        if not (n.startswith("/") or ".." in n.replace("\\", "/").split("/"))]
+                zf.extractall(tmp, members=safe)
+            step = _pick_step_from_dir(tmp)
+            if step:
+                _ZIP_CACHE[key] = step
+                return step
+        except Exception:
+            pass
+        return path  # couldn't crack the zip; let caller report needs_input
+    return path
 
 
 def _read(path):
+    path = resolve_step_path(path)
     try:
         with open(path, "r", encoding="utf-8", errors="ignore") as f:
             return f.read()
@@ -21,7 +117,23 @@ def _read(path):
 
 
 def is_step(path):
-    return str(path).lower().endswith((".step", ".stp"))
+    """True if this is a STEP file (by CONTENT, not just suffix) OR a .zip that
+    contains one.
+
+    A real STEP (ISO 10303-21) starts with an `ISO-10303` header and carries
+    PRODUCT / assembly-usage entities. Tools may hand us a STEP with a
+    non-standard extension (e.g. `foo.snapshot.1`), or wrap the whole assembly
+    in a `.zip` (e.g. `part-7549.snapshot.1.zip`). A clean `.step`/`.stp` suffix
+    is a fast accept; a zip is resolved and re-checked; everything else is
+    decided by sniffing the file for STEP markers.
+    """
+    p = str(path).lower()
+    if p.endswith((".step", ".stp")):
+        return True
+    if _is_zip(path):
+        resolved = resolve_step_path(path)
+        return resolved != path and bool(resolved) and os.path.exists(str(resolved))
+    return _sniff_is_step_text(path)
 
 
 def extract_components(path):
@@ -106,6 +218,7 @@ def extract_subassemblies(path):
 def extract_edges(path):
     """Adjacency edges. Prefer real geometric contact (if geometry kernel present);
     else use assembly-relationship edges from NAUO (parent-child = connected)."""
+    path = resolve_step_path(path)
     # try geometry first
     try:
         import step_geometry as SG

@@ -47,11 +47,15 @@ def main():
     # the caller. This is what makes "upload a STEP -> get a result" work.
     inputs = task.setdefault("inputs", {})
     path = (task.get("model") or {}).get("path", "")
-    if str(path).lower().endswith((".step", ".stp")):
+    sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "connectors"))
+    try:
+        import step_context as CTX
+        _is_step = CTX.is_step(path) if path else False
+    except Exception:
+        CTX = None
+        _is_step = str(path).lower().endswith((".step", ".stp"))
+    if _is_step and CTX is not None:
         try:
-            sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "connectors"))
-            import step_context as CTX
-
             if cap in ("mechanism_detect", "vendor_summary", "category_summary") and not inputs.get("components"):
                 inputs["components"] = CTX.extract_components(path)
             elif cap in ("assembly_tree", "exploded_view") and not inputs.get("nodes") and not inputs.get("components"):
