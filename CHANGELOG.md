@@ -3,6 +3,38 @@
 All notable changes to the Community Edition are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.6.1] - 2026-06-13
+
+### Added
+- **Review Summary V2 — engineer-facing intelligence**: the Executive Review now
+  derives, from the already-computed figures (no new data, nothing invented):
+  - **Complexity** — High / Medium / Low with transparent drivers (instance count,
+    unique-part variety, assembly depth, number of mechanism subsystems).
+  - **Manufacturing mix** — custom (in-house drawing-number series) vs commercial /
+    classified, as instance counts and percentages (e.g. 89% custom / 11%
+    commercial), the kind of ratio a manager reads at a glance.
+  - **Vendor concentration** — how many vendors are identified and how many parts
+    they cover, with the top names.
+  These render as their own sections in `review_summary.md`, turning the report
+  from "what's in the file" into "what kind of machine this is."
+
+## [0.6.0] - 2026-06-13
+
+### Added
+- **Vendor & category libraries externalized to JSON** (`data/vendors.json`,
+  `data/categories.json`): detection rules are no longer hard-coded — anyone can
+  add a brand, model series, or category by editing JSON and opening a PR, no code
+  change needed. Falls back to built-in defaults if the files are missing. Vendor
+  patterns now match model series, not just brand words (e.g. FANUC via `M-16iB` /
+  `RJ3iB`, Lincoln/welding via `TIG375`), so brands embedded in part names are
+  caught.
+- **Custom-part clustering**: parts that match no known category but share a
+  drawing-number series (e.g. `301065_P024`, `301065_P025`) are now grouped as
+  "Custom Machined (301065)" instead of going unclassified. Real industrial
+  assemblies are mostly in-house parts; on the validating robot cell this lifts
+  category coverage from ~13% of instances to ~98%, honestly labelled (clustered
+  by drawing-number series, not invented function).
+
 ## [0.5.6] - 2026-06-13
 
 ### Fixed

@@ -1,0 +1,22 @@
+{
+  "_comment": "Category classification patterns (regex, case-insensitive, matched against part names). First match wins, in list order. Community-extensible. The special 'custom_series' block clusters in-house/custom parts that share a drawing-number prefix (e.g. 301065_P024, 301065_P025 -> 'Custom Machined (301065)'); these dominate real industrial assemblies and otherwise stay unclassified.",
+  "categories": [
+    ["Robot / Arm",     ["\\brobot\\b", "manipulator", "m-?16ib", "fanuc", "\\baxis[0-9]", "rj3ib", "\\bkuka\\b", "\\babb\\b", "yaskawa", "irb\\d"]],
+    ["Welding",         ["\\btig\\b", "\\bmig\\b", "weld", "torch", "tig\\d", "mig\\d"]],
+    ["Pneumatic",       ["pneumatic", "air.?cylinder", "\\bcylinder\\b", "bimba", "\\bsmc\\b", "festo", "\\bsolenoid\\b", "12-d"]],
+    ["Grippers",        ["gripper", "schunk", "\\bpsh\\b", "\\bpgn\\b", "\\bclamp\\b", "\\bcl-\\d"]],
+    ["Linear Motion",   ["linear.*(guide|rail|stage)", "\\blm.?guide\\b", "ball.?screw", "lead.?screw", "\\bbsj\\b", "nook", "\\bthk\\b", "hiwin", "\\bslide\\b", "\\brail\\b"]],
+    ["Sensors",         ["sensor", "\\bencoder\\b", "proximity", "\\bprox\\b", "photoeye", "photo.?eye", "\\blimit.?switch\\b", "banner", "keyence"]],
+    ["Motors",          ["\\bmotor\\b", "servo", "stepper", "\\bdc.?motor\\b", "rotor"]],
+    ["Bearings",        ["\\bbearing\\b", "\\b6[0-9]{3}\\b"]],
+    ["Gears",           ["\\bgear\\b", "pinion"]],
+    ["Couplings",       ["coupling"]],
+    ["Valves",          ["\\bvalve\\b"]],
+    ["Fasteners",       ["\\bbolt\\b", "\\bnut\\b", "\\bwasher\\b", "\\bunf\\b", "\\bunc\\b", "\\bm[0-9]+x[0-9]"]]
+  ],
+  "custom_series": {
+    "_comment": "If a part name starts with a numeric drawing-number prefix like '301065_P024' or '301066_p005', cluster by the leading number. Regex must capture the series id in group 1.",
+    "pattern": "^(\\d{4,})[_-][pP]\\d",
+    "label": "Custom Machined ({series})"
+  }
+}

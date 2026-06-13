@@ -1,0 +1,29 @@
+{
+  "_comment": "Vendor/brand detection patterns (regex, matched case-insensitively against part names). Community-extensible: add a vendor and its name/model patterns, no code change needed. Patterns should match how the brand actually appears in CAD part names — that includes MODEL SERIES, not just the brand word (e.g. FANUC robots are named 'M-16iB', not 'FANUC').",
+  "vendors": {
+    "FANUC":            ["fanuc", "m-?16ib", "rj3ib", "r-?2000", "lr.?mate", "m-?710", "m-?20ia"],
+    "KUKA":             ["kuka", "\\bkr\\d"],
+    "ABB":              ["\\babb\\b", "irb\\d"],
+    "Yaskawa Motoman":  ["yaskawa", "motoman"],
+    "Universal Robots": ["universal.?robot", "\\bur[0-9]+\\b"],
+    "SCHUNK":           ["schunk", "\\bpsh\\b", "\\bpgn\\b", "\\bpzn\\b", "\\bjgp\\b"],
+    "SMC":              ["\\bsmc\\b", "\\bcq2\\b", "\\bcdq2\\b", "\\bmxq\\b"],
+    "Festo":            ["festo", "\\bdsbc\\b", "\\badn\\b", "\\bdgst\\b"],
+    "Bimba":            ["bimba", "\\b\\d+-d-stroke", "12-d"],
+    "Banner":           ["banner"],
+    "Keyence":          ["keyence"],
+    "THK":              ["\\bthk\\b", "\\bshs\\b", "\\bssr\\b", "\\bhsr\\b"],
+    "HIWIN":            ["hiwin", "\\bhgw\\b", "\\bhgr\\b", "\\bhgh\\b"],
+    "NSK":              ["\\bnsk\\b"],
+    "SKF":              ["\\bskf\\b"],
+    "Bosch Rexroth":    ["rexroth", "\\bbosch\\b"],
+    "Misumi":           ["misumi"],
+    "Nook":             ["\\bnook\\b", "\\bbsj\\b"],
+    "Parker":           ["parker"],
+    "Omron":            ["omron"],
+    "Allen-Bradley":    ["allen.?bradley", "\\bab_"],
+    "IGUS":             ["\\bigus\\b"],
+    "Lincoln Electric": ["lincoln", "tig\\d", "mig\\d", "\\btig375\\b"],
+    "Miller":           ["\\bmiller\\b"]
+  }
+}

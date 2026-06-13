@@ -16,8 +16,23 @@ Inputs are taken from task["inputs"]; if the case isn't analytically covered, th
 result says so and points to Professional (full FE), rather than guessing.
 """
 import math
+import os as _os
+import json as _json
+import re as _re
 
 G = 9.81
+
+
+def _load_rules_json(filename):
+    """Load a rule file from ../data/. Returns the parsed dict, or None if the
+    file is missing/unreadable so callers fall back to built-in defaults."""
+    try:
+        p = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "..", "data", filename)
+        with open(p, encoding="utf-8") as f:
+            return _json.load(f)
+    except Exception:
+        return None
+
 
 
 # ----------------------- static (analytical) -----------------------
@@ -544,7 +559,7 @@ DISPATCH.update({"review_summary": review_summary})
 # ----------------------- vendor summary (Community) -----------------------
 # Identify component vendors/brands from part names. Pure name matching — "what
 # brands are in here", not sourcing/pricing/alternates (those are Professional).
-_VENDOR_RULES = {
+_VENDOR_RULES_BUILTIN = {
     "FANUC": [r"fanuc"], "KUKA": [r"kuka"], "ABB": [r"\babb\b|irb\d"],
     "Universal Robots": [r"\bur[3-9,10,16,20]\b|universal.?robot"],
     "SCHUNK": [r"schunk"], "SMC": [r"\bsmc\b"], "Festo": [r"festo"],
@@ -554,6 +569,13 @@ _VENDOR_RULES = {
     "Nook": [r"\bnook\b"], "Parker": [r"parker"], "Omron": [r"omron"],
     "Allen-Bradley": [r"allen.?bradley|\bab_"], "IGUS": [r"\bigus\b"],
 }
+
+
+def _vendor_rules():
+    j = _load_rules_json("vendors.json")
+    if j and isinstance(j.get("vendors"), dict):
+        return j["vendors"]
+    return _VENDOR_RULES_BUILTIN
 
 
 def vendor_summary(inp):
@@ -571,7 +593,7 @@ def vendor_summary(inp):
                         "sourcing / pricing / alternates is Professional."}
     names = [(c.get("name") or "") for c in comps]
     found = {}
-    for vendor, pats in _VENDOR_RULES.items():
+    for vendor, pats in _vendor_rules().items():
         hits = [n for n in names if any(_re.search(p, n.lower()) for p in pats)]
         if hits:
             found[vendor] = {"count": len(hits), "examples": sorted(set(hits))[:5]}
@@ -676,7 +698,7 @@ def exploded_view(inp):
 # ----------------------- component category summary (Community) -----------------------
 # Count components by category from names. Statistics only — NOT a procurement list,
 # sourcing, supplier or cost analysis (that is Professional procurement intelligence).
-_CATEGORY_RULES = [
+_CATEGORY_RULES_BUILTIN = [
     ("Motors",              [r"\bmotor\b", r"servo", r"stepper", r"\bdc.?motor\b"]),
     ("Sensors",             [r"sensor", r"\bencoder\b", r"proximity", r"\bprox\b",
                              r"photoeye", r"photo.?eye", r"\blimit.?switch\b", r"banner"]),
@@ -698,6 +720,13 @@ _CATEGORY_RULES = [
 ]
 
 
+def _category_rules():
+    j = _load_rules_json("categories.json")
+    if j and isinstance(j.get("categories"), list):
+        return [(row[0], row[1]) for row in j["categories"]], j.get("custom_series")
+    return _CATEGORY_RULES_BUILTIN, None
+
+
 def category_summary(inp):
     """Count components by category from part names (Community).
 
@@ -712,18 +741,40 @@ def category_summary(inp):
         return {"status": "needs_input", "needs": ["inputs.components"],
                 "note": "Provide the component list. This counts by category; procurement "
                         "(sourcing/cost/alternates) is Professional."}
+    rules, custom = _category_rules()
+    custom_pat = _re.compile(custom["pattern"]) if (custom and custom.get("pattern")) else None
+    custom_label = (custom or {}).get("label", "Custom Machined ({series})")
     counts = {}
+    custom_counts = {}     # series id -> qty
     for c in comps:
-        name = (c.get("name") or "").lower()
+        raw = (c.get("name") or "")
+        name = raw.lower()
         qty = c.get("qty", 1) or 1
-        for cat, pats in _CATEGORY_RULES:
+        matched = False
+        for cat, pats in rules:
             if any(_re.search(p, name) for p in pats):
                 counts[cat] = counts.get(cat, 0) + qty
+                matched = True
                 break  # first matching category only
+        if matched:
+            continue
+        # not a known category — try clustering as a custom/in-house part by
+        # its drawing-number series (e.g. 301065_P024 -> series 301065).
+        if custom_pat:
+            m = custom_pat.match(raw)
+            if m:
+                series = m.group(1)
+                custom_counts[series] = custom_counts.get(series, 0) + qty
     out = sorted(counts.items(), key=lambda kv: -kv[1])
+    cats = [{"category": k, "count": v} for k, v in out]
+    # add custom-series clusters (largest first), labelled honestly
+    for series, n in sorted(custom_counts.items(), key=lambda kv: -kv[1]):
+        cats.append({"category": custom_label.format(series=series), "count": n,
+                     "custom": True})
     return {"status": "ok", "results": {
-        "categories": [{"category": k, "count": v} for k, v in out],
-        "note": "Component counts by category (statistics only). Procurement lists, "
+        "categories": cats,
+        "note": "Component counts by category (statistics only). 'Custom Machined' "
+                "groups in-house parts by drawing-number series. Procurement lists, "
                 "sourcing, alternates and cost are Professional."}}
 
 

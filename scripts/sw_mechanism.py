@@ -105,6 +105,33 @@ def _render_review_md(step_name, summary, bom_items, caveats):
     L.append(f"- Assembly depth: {a.get('assembly_depth', '?')}")
     L.append("")
 
+    comp = summary.get("complexity")
+    if comp:
+        L.append("## Complexity")
+        L.append("")
+        L.append(f"- Level: **{comp.get('level', '?')}**")
+        if comp.get("reasons"):
+            L.append(f"- Drivers: {', '.join(comp['reasons'])}")
+        L.append("")
+
+    mix = summary.get("manufacturing_mix")
+    if mix:
+        L.append("## Manufacturing mix")
+        L.append("")
+        L.append(f"- Custom (in-house): {mix['custom_instances']} instances ({mix['custom_pct']}%)")
+        L.append(f"- Commercial / classified: {mix['commercial_instances']} instances ({mix['commercial_pct']}%)")
+        L.append("")
+
+    vc = summary.get("vendor_concentration")
+    if vc and vc.get("identified_vendors"):
+        L.append("## Vendor concentration")
+        L.append("")
+        L.append(f"- Identified vendors: {vc['identified_vendors']} "
+                 f"({vc['vendor_matched_parts']} parts matched)")
+        if vc.get("top_vendors"):
+            L.append(f"- Top: {', '.join(vc['top_vendors'])}")
+        L.append("")
+
     mech = summary.get("mechanisms")
     if mech:
         L.append("## Detected mechanisms")
@@ -251,6 +278,61 @@ def _executive_review(task, args):
     risk = free_fea.DISPATCH["risk_score"]({"signals": signals})
     if risk.get("status") == "ok":
         summary["risk"] = risk["results"]
+
+    # --- Review Summary V2: derive engineer-facing intelligence from the
+    # already-computed figures. Pure aggregation — no new data, nothing invented. ---
+    a = summary["assembly"]
+    inst = a.get("total_instances", 0)
+    uniq = a.get("unique_parts", 0)
+    depth = a.get("assembly_depth", 0)
+
+    # Manufacturing mix: custom (drawing-series clusters) vs commercial (the rest).
+    custom_inst = 0
+    commercial_inst = 0
+    for r in (cat.get("results", {}).get("categories", []) if cat.get("status") == "ok" else []):
+        if r.get("custom"):
+            custom_inst += r.get("count", 0)
+        else:
+            commercial_inst += r.get("count", 0)
+    classified = custom_inst + commercial_inst
+    if classified:
+        summary["manufacturing_mix"] = {
+            "custom_instances": custom_inst,
+            "commercial_instances": commercial_inst,
+            "custom_pct": round(100 * custom_inst / classified),
+            "commercial_pct": round(100 * commercial_inst / classified),
+            "basis": "classified instances; custom = in-house drawing-number series, "
+                     "commercial = matched a known category/vendor",
+        }
+
+    # Subsystems present (from detected mechanisms) — drives the complexity read.
+    subsystems = []
+    if mech.get("status") == "ok":
+        subsystems = [d.get("mechanism") for d in mech["results"].get("detected", []) if d.get("mechanism")]
+
+    # Complexity level: transparent thresholds on instance count, part variety,
+    # depth, and subsystem count. Reasons are listed so it's not a black box.
+    reasons = []
+    score = 0
+    if inst >= 300: score += 2; reasons.append(f"{inst} instances")
+    elif inst >= 100: score += 1; reasons.append(f"{inst} instances")
+    if uniq >= 100: score += 2; reasons.append(f"{uniq} unique parts")
+    elif uniq >= 40: score += 1; reasons.append(f"{uniq} unique parts")
+    if depth >= 4: score += 1; reasons.append(f"assembly depth {depth}")
+    if len(subsystems) >= 2: score += 1; reasons.append(f"{len(subsystems)} mechanism subsystems")
+    level = "High" if score >= 4 else ("Medium" if score >= 2 else "Low")
+    summary["complexity"] = {"level": level, "reasons": reasons,
+                             "basis": "transparent thresholds on instances, part variety, depth, subsystems"}
+
+    # Vendor concentration: how much of the assembly is identifiable commercial brands.
+    if ven.get("status") == "ok":
+        vrows = ven["results"].get("vendors", [])
+        vendor_parts = sum(v.get("count", 0) for v in vrows)
+        summary["vendor_concentration"] = {
+            "identified_vendors": len(vrows),
+            "vendor_matched_parts": vendor_parts,
+            "top_vendors": [v.get("vendor") for v in vrows[:5]],
+        }
 
     # Output goes next to the STEP, in a predictable folder, so the user (and the
     # agent) can always find it — instead of a temp dir the agent picks and then
