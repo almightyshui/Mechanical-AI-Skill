@@ -3,6 +3,16 @@
 All notable changes to the Community Edition are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.3.1] - 2026-06-12
+
+### Fixed
+- **STEP Auto Context**: `assembly_tree`, `assembly_stats`, `mechanism_detect`,
+  `vendor_summary`, `category_summary`, `adjacency_graph`, and `exploded_view` now
+  extract their inputs (components / nodes / subassemblies / edges) **directly from a
+  STEP file** via a new `connectors/step_context.py` layer. Previously they returned
+  `needs_input` unless the caller pre-extracted the data by hand. Now a STEP path is
+  enough — "upload a STEP -> get a result" actually works end to end.
+
 ## [0.3.0] - 2026-06-12
 
 Capability expansion driven by real-assembly testing (a 39 MB robotic welding cell).
@@ -101,3 +111,4 @@ First public release of the Community Edition — an AI mechanical-engineering C
 [0.1.0]: https://github.com/almightyshui/Mechanical-AI-Skill/releases/tag/v0.1.0
 [0.2.0]: https://github.com/almightyshui/Mechanical-AI-Skill/releases/tag/v0.2.0
 [0.3.0]: https://github.com/almightyshui/Mechanical-AI-Skill/releases/tag/v0.3.0
+[0.3.1]: https://github.com/almightyshui/Mechanical-AI-Skill/releases/tag/v0.3.1

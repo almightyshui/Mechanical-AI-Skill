@@ -172,3 +172,31 @@ def adjacency(path, contact_tol_mm=0.5, max_solids=60, max_pairs=2000):
     return {"solids": n, "too_large": False, "edges": edges,
             "edge_count": len(edges), "degree": deg,
             "contact_tol_mm": contact_tol_mm}
+
+
+def read_product_names(path):
+    """Extract component (PRODUCT) names from a STEP file by text parsing.
+
+    No geometry kernel needed — STEP stores product names in PRODUCT(...) entities,
+    so this works in any environment (unlike the boolean/distance functions which need
+    cadquery/OCP). Returns a de-duplicated list of component dicts [{name}].
+
+    This is what lets mechanism_detect / vendor_summary / category_summary /
+    assembly_tree / exploded_view run on a STEP path directly, instead of asking the
+    caller to supply the component list.
+    """
+    import re
+    names = []
+    seen = set()
+    try:
+        with open(path, "r", encoding="utf-8", errors="ignore") as f:
+            text = f.read()
+    except Exception:
+        return []
+    # PRODUCT( 'id' , 'name' , 'desc' , (...) )  — name is the 2nd quoted field
+    for m in re.finditer(r"PRODUCT\s*\(\s*'([^']*)'\s*,\s*'([^']*)'", text):
+        name = (m.group(2) or m.group(1) or "").strip()
+        if name and name not in seen:
+            seen.add(name)
+            names.append({"name": name})
+    return names
